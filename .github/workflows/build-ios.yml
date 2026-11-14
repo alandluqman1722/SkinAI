@@ -1,0 +1,134 @@
+
+name: Build SkinAI iOS IPA
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skinai-ios-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build SkinAI for iOS
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      # 1. Download repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # 3. Find Flutter project automatically
+      - name: Detect Flutter project
+        id: flutter_project
+        shell: bash
+        run: |
+          echo "Searching for Flutter project..."
+
+          PROJECT_DIR=""
+
+          while IFS= read -r file; do
+            DIR="$(dirname "$file")"
+
+            if [ -f "$DIR/lib/main.dart" ]; then
+              PROJECT_DIR="$DIR"
+              break
+            fi
+          done < <(
+            find . \
+              -type d \( -name .git -o -name build -o -name .dart_tool \) -prune \
+              -o -type f -name pubspec.yaml -print
+          )
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Flutter project not found!"
+            echo "Available pubspec.yaml files:"
+            find . -name pubspec.yaml -not -path "*/build/*"
+            exit 1
+          fi
+
+          echo "Flutter project found: $PROJECT_DIR"
+
+          echo "directory=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      # 4. Show project information
+      - name: Show project information
+        working-directory: ${{ steps.flutter_project.outputs.directory }}
+        run: |
+          echo "=== PROJECT INFORMATION ==="
+          flutter --version
+          echo "=== PUBSPEC ==="
+          cat pubspec.yaml
+          echo "=== MAIN DART ==="
+          ls -la lib/
+
+      # 5. Install dependencies
+      - name: Install Flutter dependencies
+        working-directory: ${{ steps.flutter_project.outputs.directory }}
+        run: |
+          flutter pub get
+
+      # 6. Check Flutter project
+      - name: Analyze Flutter project
+        working-directory: ${{ steps.flutter_project.outputs.directory }}
+        run: |
+          flutter analyze --no-pub
+
+      # 7. Build iOS IPA without code signing
+      - name: Build iOS IPA
+        working-directory: ${{ steps.flutter_project.outputs.directory }}
+        run: |
+          flutter build ipa \
+            --release \
+            --no-codesign
+
+      # 8. Verify build output
+      - name: Verify IPA output
+        working-directory: ${{ steps.flutter_project.outputs.directory }}
+        shell: bash
+        run: |
+          echo "=== IPA FILES ==="
+
+          find build/ios/ipa -maxdepth 1 -name "*.ipa" -type f
+
+          if ! find build/ios/ipa -maxdepth 1 -name "*.ipa" -type f | grep -q .; then
+            echo "ERROR: IPA file was not generated!"
+            echo "Checking iOS build output..."
+            find build/ios -maxdepth 3 -type d
+            exit 1
+          fi
+
+      # 9. Upload IPA artifact
+      - name: Upload SkinAI IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkinAI-iOS-IPA
+          path: ${{ steps.flutter_project.outputs.directory }}/build/ios/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      # 10. Upload build logs if build fails
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkinAI-iOS-Build-Diagnostics
+          path: |
+            **/build/ios/**/*.log
+            **/build/ios/Flutter/*.xcconfig
+          if-no-files-found: ignore
+          retention-days: 7

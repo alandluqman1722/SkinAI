@@ -1,0 +1,136 @@
+SkinAI — Run the complete application on Windows
+
+Open two PowerShell windows. Run these commands from the repository root:
+E:\Desktop\nn\skin_ai
+
+One-time setup
+--------------
+
+1. Prepare the backend environment:
+
+   .\backend\.venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+   notepad .env
+
+2. Configure the backend's untracked .env file:
+
+   - FIREBASE_PROJECT_ID=skinai-b0465 (or the Firebase project used by the app)
+   - GOOGLE_APPLICATION_CREDENTIALS=<absolute path to your Firebase Admin service-account JSON>
+   - EMAIL_BLOCK_HMAC_KEY=<the exact same secret configured for Firebase Functions>
+   - MOCK_API=1
+   - SCANSKIN_API_KEY=<your valid ScanSkinAI key, only needed for real scans>
+   - SKINCHAT_AI_ENABLED=true
+   - SKINCHAT_AI_API_KEY=<your valid Gemini API key>
+   - SKINCHAT_AI_MODEL=<a Gemini model enabled for your Google AI project>
+   - SKINAI_IMAGE_STORAGE_DIR=backend/uploads/skin_images
+
+   Keep the Firebase service-account JSON outside this repository. Make sure
+   the credential path exists. Firebase Admin credentials are required even
+   when MOCK_API=1. EMAIL_BLOCK_HMAC_KEY is also required for authenticated
+   API requests. Copy the existing Firebase Functions secret; do not generate a
+   different value, because it would no longer match the Firestore blocklist.
+   Never paste the secret into chat or commit it to source control.
+
+   If you have Google Cloud Secret Manager access, retrieve the existing value
+   directly into .env without printing it in the console:
+
+   $secret = (& gcloud secrets versions access latest --secret=EMAIL_BLOCK_HMAC_KEY --project=skinai-b0465)
+   if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($secret)) { throw 'Could not retrieve the existing secret. Ask the Firebase project owner for Secret Manager access.' }
+   if (Select-String -Path .env -Pattern '^\s*EMAIL_BLOCK_HMAC_KEY\s*=' -Quiet) { throw 'EMAIL_BLOCK_HMAC_KEY already exists in .env; update it securely instead of adding a duplicate.' }
+   Add-Content -Path .env -Value "`nEMAIL_BLOCK_HMAC_KEY=$secret"
+   Remove-Variable secret
+
+   This requires the Google Cloud CLI and permission to access that secret. If
+   access is denied or the secret is not found, ask the Firebase project owner
+   to retrieve the existing value securely. Do not generate a new value unless
+   the owner plans and performs a coordinated secret and blocklist migration.
+   If you do not have the CLI, the owner can grant your Google account
+   Secret Manager Secret Accessor permission for this secret, or configure the
+   backend in an authorized environment. The owner can also view the existing
+   secret version in Google Cloud Console → Security → Secret Manager. Never
+   send the secret through chat, email, or screenshots.
+
+   Keep provider keys in the backend .env only. Do not put keys in Flutter
+   configuration, source code, or shared text. Revoke and replace any provider
+   key previously pasted into chat or stored in this run guide.
+
+3. Configure Flutter Firebase options in firebase.config.json using the Firebase
+   client configuration. For Google sign-in in Chrome, configure the Google
+   OAuth Web client ID as well.
+
+Start the backend
+-----------------
+
+In PowerShell window 1:
+
+   Set-Location 'E:\Desktop\nn\skin_ai'
+   .\backend\.venv\Scripts\Activate.ps1
+   python app.py
+
+Leave this window open. Check the API from another window:
+
+   Invoke-RestMethod http://127.0.0.1:8000/health
+
+Start Flutter in Chrome
+-----------------------
+
+In PowerShell window 2:
+
+   Set-Location 'E:\Desktop\nn\skin_ai'
+   flutter pub get
+   flutter run -d chrome --dart-define-from-file=firebase.config.json --dart-define=AI_API_URL=http://127.0.0.1:8000
+
+Start Flutter in the Android emulator
+-------------------------------------
+
+Use the emulator's host address (10.0.2.2) so Android can reach the backend:
+
+   Set-Location 'E:\Desktop\nn\skin_ai'
+   flutter pub get
+   flutter devices
+   flutter run -d <emulator-device-id> --dart-define-from-file=firebase.config.json --dart-define=AI_API_URL=http://10.0.2.2:8000
+
+For a physical phone, use your computer's LAN IP instead of 10.0.2.2. Make sure
+both devices are on the same network and the firewall allows port 8000.
+
+Use real ScanSkinAI scans
+-------------------------
+
+The current .env setting MOCK_API=1 returns clearly labeled mock results and
+does not call ScanSkinAI. To use real scans:
+
+1. Ensure SCANSKIN_API_KEY in .env is a valid, rotated key.
+2. Change MOCK_API=1 to MOCK_API=0 in .env.
+3. Stop the backend with Ctrl+C and start it again using the command above.
+4. Retry the scan and check the backend terminal for provider errors.
+
+Do not set or paste keys in the Flutter command. The key previously included
+in this file has been removed; revoke it because it was exposed.
+
+Troubleshooting
+---------------
+
+- If /health fails, check the backend terminal and verify that the Firebase
+  Admin credential file exists at the path in .env.
+- The app's "AI service is temporarily unavailable" scan message corresponds
+  to HTTP 503. Check the backend log: if it says ScanSkinAI is not configured,
+  add a valid SCANSKIN_API_KEY to .env; if it reports an upstream error, verify
+  the key/provider availability. Restart the backend after editing .env.
+- SkinChat Gemini HTTP 404 is separate from scan HTTP 503. Verify that
+  SKINCHAT_AI_MODEL is available to the Google AI project that owns
+  SKINCHAT_AI_API_KEY, then restart the backend.
+- For connection failures, use 127.0.0.1 for Chrome on this computer,
+  10.0.2.2 for the Android emulator, or the computer's LAN IP for a phone.
+
+Local uploaded images are stored in backend/uploads/skin_images by default.
+For production, mount a persistent private volume there; container-local files
+may be lost when the server is redeployed.
+
+
+
+
+.\backend\.venv\Scripts\Activate.ps1
+$env:MOCK_API = "0"
+$env:SCANSKIN_API_KEY = "df3O9hDg5-q0OqTtwZpbYCUvJ_WAYuD2wQHHEBxTCbQ"
+python app.py

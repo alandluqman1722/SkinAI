@@ -1,0 +1,38 @@
+{
+  "project_info": {
+    "project_number": "423841896219",
+    "project_id": "skinai-b0465"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:423841896219:android:781f972adbb054e27265be",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "423841896219-ue2qcgsnccnueup7eh2dfpf4c6agv1kf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAx8HoBd_jvEjdoM848JroPY_9N2yoKXRQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "423841896219-ue2qcgsnccnueup7eh2dfpf4c6agv1kf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
