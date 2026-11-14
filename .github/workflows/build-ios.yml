@@ -36,8 +36,6 @@ jobs:
         id: flutter_project
         shell: bash
         run: |
-          echo "Searching for Flutter project..."
-
           PROJECT_DIR=""
 
           while IFS= read -r file; do
@@ -55,29 +53,30 @@ jobs:
 
           if [ -z "$PROJECT_DIR" ]; then
             echo "ERROR: Flutter project not found!"
-            echo "Available pubspec.yaml files:"
-            find . -name pubspec.yaml -not -path "*/build/*"
             exit 1
           fi
 
           echo "Flutter project found: $PROJECT_DIR"
           echo "directory=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
-      # 4. Disable Swift Package Manager (avoids the SPM migration error)
+      # 4. Disable Swift Package Manager
       - name: Disable Swift Package Manager
         run: |
           flutter config --no-enable-swift-package-manager
 
-      # 5. Show project information
-      - name: Show project information
+      # 5. Create firebase.config.json from the GitHub Secret
+      - name: Create firebase.config.json
         working-directory: ${{ steps.flutter_project.outputs.directory }}
+        shell: bash
+        env:
+          FIREBASE_CONFIG_JSON: ${{ secrets.FIREBASE_CONFIG_JSON }}
         run: |
-          echo "=== PROJECT INFORMATION ==="
-          flutter --version
-          echo "=== PUBSPEC ==="
-          cat pubspec.yaml
-          echo "=== LIB ==="
-          ls -la lib/
+          if [ -z "$FIREBASE_CONFIG_JSON" ]; then
+            echo "ERROR: Secret FIREBASE_CONFIG_JSON is empty or missing!"
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_CONFIG_JSON" > firebase.config.json
+          echo "firebase.config.json created"
 
       # 6. Install dependencies
       - name: Install Flutter dependencies
@@ -85,7 +84,7 @@ jobs:
         run: |
           flutter pub get
 
-      # 7. Check Flutter project (infos and warnings do not fail the build)
+      # 7. Analyze (infos and warnings do not fail the build)
       - name: Analyze Flutter project
         working-directory: ${{ steps.flutter_project.outputs.directory }}
         run: |
@@ -95,7 +94,7 @@ jobs:
       - name: Build iOS (No Codesign)
         working-directory: ${{ steps.flutter_project.outputs.directory }}
         run: |
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign --dart-define-from-file=firebase.config.json
 
       # 9. Create IPA from Runner.app
       - name: Create IPA
@@ -113,7 +112,6 @@ jobs:
           cp -r build/ios/iphoneos/Runner.app Payload/
           zip -r SkinAI.ipa Payload
 
-          echo "=== IPA FILE ==="
           ls -lh SkinAI.ipa
 
       # 10. Upload IPA artifact
