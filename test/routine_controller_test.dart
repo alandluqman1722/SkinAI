@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart'
     show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
@@ -346,6 +347,13 @@ void main() {
     );
   });
 
+  test('iOS widget bridge is unavailable for sideloaded builds', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    expect(HomeWidgetBridge().isSupported, isFalse);
+  });
+
   testWidgets('routine completion updates progress and notification history',
       (tester) async {
     final controller = RoutineController(scheduler: _FakeScheduler());
@@ -368,6 +376,83 @@ void main() {
 
     expect(controller.completedCount(DateTime.now()), 1);
     expect(controller.notifications, hasLength(1));
+  });
+
+  testWidgets('expanded routine shows progress ring and period columns',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 1000);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = RoutineController(scheduler: _FakeScheduler());
+    await controller.init(preferences: preferences);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RoutineDashboardScreen(
+            controller: controller,
+            language: 'en',
+            accentColor: const Color(0xFF168CFF),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+        find.byKey(const ValueKey('routine-daily-progress')), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Evening')).dx,
+      greaterThan(tester.getTopLeft(find.text('Morning')).dx),
+    );
+    expect(find.textContaining('day streak'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('small routine screen supports scaled Kurdish RTL text',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 568);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = RoutineController(scheduler: _FakeScheduler());
+    await controller.init(preferences: preferences);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(320, 568),
+            textScaler: TextScaler.linear(1.3),
+          ),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Scaffold(
+              body: RoutineDashboardScreen(
+                controller: controller,
+                language: 'ku',
+                accentColor: const Color(0xFF168CFF),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      Directionality.of(
+        tester.element(find.byKey(const ValueKey('routine-daily-progress'))),
+      ),
+      TextDirection.rtl,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('notification center marks opened items read and filters them',
@@ -404,6 +489,91 @@ void main() {
       find.text('There are no notifications in this view.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('notification center aligns filters within desktop content',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = RoutineController(scheduler: _FakeScheduler());
+    await controller.init(preferences: preferences);
+    await controller.addNotification(
+      title: 'Routine task completed',
+      body: 'Moisturize',
+      category: 'routine',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotificationCenterScreen(
+          controller: controller,
+          language: 'en',
+          onOpenDeepLink: (_) {},
+          onMasterChanged: (_) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .getRect(
+            find.byKey(const ValueKey('notification-center-content')),
+          )
+          .width,
+      1200,
+    );
+    expect(
+      tester.getTopLeft(find.byType(DropdownButtonFormField<String>)).dx,
+      greaterThan(tester.getTopLeft(find.byType(TextField)).dx),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('notification settings fit small scaled RTL screens',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 568);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = RoutineController(scheduler: _FakeScheduler());
+    await controller.init(preferences: preferences);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(320, 568),
+            textScaler: TextScaler.linear(1.3),
+          ),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: NotificationSettingsScreen(
+              controller: controller,
+              language: 'ku',
+              onMasterChanged: (_) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      Directionality.of(
+        tester.element(
+          find.byKey(const ValueKey('notification-settings-content')),
+        ),
+      ),
+      TextDirection.rtl,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('notification center follows live locale and RTL direction',
@@ -503,6 +673,39 @@ void main() {
       findsOneWidget,
     );
     expect(controller.notificationSettings.masterEnabled, isFalse);
+  });
+
+  testWidgets('notification quiet hours use the iOS time picker',
+      (tester) async {
+    final controller = RoutineController(scheduler: _FakeScheduler());
+    await controller.init(preferences: preferences);
+    await controller.updateNotificationSettings(
+      controller.notificationSettings.copyWith(quietHoursEnabled: true),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
+        home: NotificationSettingsScreen(
+          controller: controller,
+          language: 'en',
+          onMasterChanged: (_) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Quiet hours start'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quiet hours start'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CupertinoTimerPicker), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CupertinoTimerPicker), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('widget gallery persists selected native widget style',

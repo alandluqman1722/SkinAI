@@ -16,6 +16,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_ai/design/app_design_system.dart';
 import 'package:skin_ai/auth/social_auth_service.dart';
 import 'package:skin_ai/multipart_upload.dart';
 import 'package:skin_ai/scan_report.dart';
@@ -300,10 +301,10 @@ class FirebaseClientConfig {
 
 // -------------------- Brand colors --------------------
 
-const Color cyan = Color(0xFF00E5FF);
-const Color blue = Color(0xFF087CFF);
-const Color purple = Color(0xFF963BFF);
-const List<Color> brandGradient = [Color(0xFF00B8D9), blue, purple];
+const Color cyan = AppDesignTokens.cyan;
+const Color blue = AppDesignTokens.blue;
+const Color purple = AppDesignTokens.purple;
+const List<Color> brandGradient = AppDesignTokens.brandGradient;
 
 // -------------------- Theme palette (dark + light) --------------------
 
@@ -346,16 +347,16 @@ class Pal {
       );
 
   static const dark = Pal(
-    bg: Color(0xFF050714),
+    bg: AppDesignTokens.darkBackground,
     panel: Color(0xFF10172A),
     input: Color(0xFF080E1D),
     text: Colors.white,
     sub: Color(0xFFB5C4DE),
     hint: Color(0xFF7F8CA8),
     border: Color(0x24FFFFFF),
-    accent: cyan,
+    accent: AppDesignTokens.cyan,
     nav: Color(0xFF0B1021),
-    snack: Color(0xFF17243B),
+    snack: AppDesignTokens.darkSnack,
     bgGradient: [
       Color(0xFF030611),
       Color(0xFF0A1025),
@@ -367,7 +368,7 @@ class Pal {
   );
 
   static const light = Pal(
-    bg: Color(0xFFF3F6FF),
+    bg: AppDesignTokens.lightBackground,
     panel: Colors.white,
     input: Color(0xFFF0F4FC),
     text: Color(0xFF0B1226),
@@ -376,7 +377,7 @@ class Pal {
     border: Color(0x1F0B1226),
     accent: Color(0xFF0A7BD8),
     nav: Colors.white,
-    snack: Colors.white,
+    snack: AppDesignTokens.lightSnack,
     bgGradient: [
       Color(0xFFF7F9FF),
       Color(0xFFE8F0FF),
@@ -415,19 +416,7 @@ class Pal {
 }
 
 ThemeData buildTheme(Brightness b, {Color? accentColor}) {
-  final p = b == Brightness.dark ? Pal.dark : Pal.light;
-  final accent = accentColor ?? p.accent;
-  return ThemeData(
-    brightness: b,
-    useMaterial3: true,
-    scaffoldBackgroundColor: p.bg,
-    colorScheme: ColorScheme.fromSeed(seedColor: accent, brightness: b),
-    snackBarTheme: SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: p.snack,
-      contentTextStyle: TextStyle(color: p.text),
-    ),
-  );
+  return AppTheme.build(b, accentColor: accentColor);
 }
 
 // -------------------- App state: language + theme --------------------
@@ -3116,6 +3105,11 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
+  static const _appleSignInEnabled = bool.fromEnvironment(
+    'SKINAI_ENABLE_APPLE_SIGN_IN',
+    defaultValue: false,
+  );
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -3411,11 +3405,36 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
     final p = Pal.of(context);
 
     return NeonBackground(
-      child: Center(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isExpanded = AppBreakpoints.fromWidth(constraints.maxWidth) ==
+              AppViewport.expanded;
+          final platform = Theme.of(context).platform;
+          final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+          return Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsetsDirectional.fromSTEB(
+                AppSpacing.x6,
+                AppSpacing.x2,
+                AppSpacing.x6,
+                bottomInset + AppSpacing.x6,
+              ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
+                constraints: BoxConstraints(
+                  maxWidth: isExpanded ? AppBreakpoints.contentMaxWidth : 480,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (isExpanded) ...[
+                      Expanded(child: _authBrandPanel(a, p)),
+                      const SizedBox(width: AppSpacing.x8),
+                    ],
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 480),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -3447,7 +3466,9 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                 const Center(child: AppLogo(size: 84)),
                 const SizedBox(height: 22),
                 Text(
-                  isLogin ? a.t('welcomeBack') : a.t('createAccount'),
+                                isLogin
+                                    ? a.t('welcomeBack')
+                                    : a.t('createAccount'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 30,
@@ -3459,7 +3480,8 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                 Text(
                   isLogin ? a.t('signinSub') : a.t('signupSub'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: p.sub, fontSize: 13, height: 1.5),
+                                style: TextStyle(
+                                    color: p.sub, fontSize: 13, height: 1.5),
                 ),
                 const SizedBox(height: 26),
                 Container(
@@ -3487,7 +3509,8 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                   child: Form(
                     key: _formKey,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                       children: [
                         if (!isLogin) ...[
                           _label(a.t('fullName'), p),
@@ -3498,7 +3521,8 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                             hint: a.t('fullNameHint'),
                             icon: Icons.person_outline_rounded,
                             validator: (value) {
-                              if (value == null || value.trim().length < 2) {
+                                            if (value == null ||
+                                                value.trim().length < 2) {
                                 return a.t('errName');
                               }
                               return null;
@@ -3513,10 +3537,12 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                           controller: _emailController,
                           hint: a.t('emailHint'),
                           icon: Icons.mail_outline_rounded,
-                          keyboardType: TextInputType.emailAddress,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
                           validator: (value) {
                             final email = value?.trim() ?? '';
-                            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                          if (!RegExp(
+                                                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
                                 .hasMatch(email)) {
                               return a.t('errEmail');
                             }
@@ -3533,8 +3559,12 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                           icon: Icons.lock_outline_rounded,
                           obscureText: hidePassword,
                           suffix: IconButton(
+                                          tooltip: hidePassword
+                                              ? a.t('showPassword')
+                                              : a.t('hidePassword'),
                             onPressed: () {
-                              setState(() => hidePassword = !hidePassword);
+                                            setState(() =>
+                                                hidePassword = !hidePassword);
                             },
                             icon: Icon(
                               hidePassword
@@ -3544,7 +3574,8 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                             ),
                           ),
                           validator: (value) {
-                            if (value == null || value.length < 8) {
+                                          if (value == null ||
+                                              value.length < 8) {
                               return a.t('errPass');
                             }
                             return null;
@@ -3561,18 +3592,24 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                             icon: Icons.verified_user_outlined,
                             obscureText: hideConfirm,
                             suffix: IconButton(
+                                            tooltip: hideConfirm
+                                                ? a.t('showPassword')
+                                                : a.t('hidePassword'),
                               onPressed: () {
-                                setState(() => hideConfirm = !hideConfirm);
+                                              setState(() =>
+                                                  hideConfirm = !hideConfirm);
                               },
                               icon: Icon(
                                 hideConfirm
-                                    ? Icons.visibility_off_outlined
+                                                  ? Icons
+                                                      .visibility_off_outlined
                                     : Icons.visibility_outlined,
                                 color: p.hint,
                               ),
                             ),
                             validator: (value) {
-                              if (value != _passwordController.text) {
+                                            if (value !=
+                                                _passwordController.text) {
                                 return a.t('errMatch');
                               }
                               return null;
@@ -3582,53 +3619,66 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                           CheckboxListTile(
                             value: acceptedTerms,
                             onChanged: (value) {
-                              setState(() => acceptedTerms = value ?? false);
+                                            setState(() =>
+                                                acceptedTerms = value ?? false);
                             },
                             contentPadding: EdgeInsets.zero,
-                            controlAffinity: ListTileControlAffinity.leading,
+                                          controlAffinity:
+                                              ListTileControlAffinity.leading,
                             activeColor: blue,
                             checkColor: Colors.white,
                             title: Text(
                               a.t('terms'),
-                              style: TextStyle(fontSize: 12, color: p.sub),
+                                            style: TextStyle(
+                                                fontSize: 12, color: p.sub),
                             ),
                           ),
                         ],
                         if (isLogin)
                           Align(
-                            alignment: AlignmentDirectional.centerEnd,
+                                          alignment:
+                                              AlignmentDirectional.centerEnd,
                             child: TextButton(
                               onPressed: () => Navigator.push(
                                 context,
-                                fadeRoute(const PasswordRecoveryScreen()),
+                                              fadeRoute(
+                                                  const PasswordRecoveryScreen()),
                               ),
                               child: Text(
                                 a.t('forgot'),
-                                style: TextStyle(color: p.accent, fontSize: 12),
+                                              style: TextStyle(
+                                                  color: p.accent,
+                                                  fontSize: 12),
                               ),
                             ),
                           ),
                         const SizedBox(height: 12),
                         NeonButton(
-                          text: isLogin ? a.t('signIn') : a.t('createAccount'),
+                                        text: isLogin
+                                            ? a.t('signIn')
+                                            : a.t('createAccount'),
                           icon: isLogin
                               ? Icons.login_rounded
                               : Icons.person_add_alt_1_rounded,
                           isLoading: busy,
-                          onTap:
-                              busy || _resendingVerification ? () {} : _submit,
+                                        onTap: busy || _resendingVerification
+                                            ? () {}
+                                            : _submit,
                         ),
                         if (!kIsWeb &&
-                            (defaultTargetPlatform == TargetPlatform.iOS ||
-                                defaultTargetPlatform ==
+                                          (platform == TargetPlatform.iOS ||
+                                              platform ==
                                     TargetPlatform.android)) ...[
                           const SizedBox(height: 18),
                           Row(
                             children: [
-                              Expanded(child: Divider(color: p.border)),
+                                            Expanded(
+                                                child:
+                                                    Divider(color: p.border)),
                               Padding(
                                 padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12),
                                 child: Text(
                                   a.t('continueWith'),
                                   style: TextStyle(
@@ -3639,18 +3689,23 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                                   ),
                                 ),
                               ),
-                              Expanded(child: Divider(color: p.border)),
+                                            Expanded(
+                                                child:
+                                                    Divider(color: p.border)),
                             ],
                           ),
                           const SizedBox(height: 14),
-                          if (defaultTargetPlatform == TargetPlatform.iOS) ...[
+                                        if (platform == TargetPlatform.iOS &&
+                                            _appleSignInEnabled) ...[
                             _socialButton(
                               label: a.t('signInApple'),
                               loadingLabel: a.t('appleLoading'),
                               isApple: true,
-                              isLoading: _socialProvider == 'apple',
-                              onPressed:
-                                  busy ? null : () => _socialSignIn('apple'),
+                                            isLoading:
+                                                _socialProvider == 'apple',
+                                            onPressed: busy
+                                                ? null
+                                                : () => _socialSignIn('apple'),
                             ),
                             const SizedBox(height: 12),
                           ],
@@ -3658,22 +3713,27 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                             label: a.t('signInGoogle'),
                             loadingLabel: a.t('googleLoading'),
                             isApple: false,
-                            isLoading: _socialProvider == 'google',
-                            onPressed:
-                                busy ? null : () => _socialSignIn('google'),
+                                          isLoading:
+                                              _socialProvider == 'google',
+                                          onPressed: busy
+                                              ? null
+                                              : () => _socialSignIn('google'),
                           ),
                         ],
-                        if (_showVerificationResend && isLogin) ...[
+                                      if (_showVerificationResend &&
+                                          isLogin) ...[
                           const SizedBox(height: 16),
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: p.input,
-                              borderRadius: BorderRadius.circular(14),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
                               border: Border.all(color: p.border),
                             ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
                               children: [
                                 if (_verificationStatus != null)
                                   Text(
@@ -3688,21 +3748,26 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                 TextButton.icon(
-                                  onPressed: busy || _checkingVerification
+                                                onPressed: busy ||
+                                                        _checkingVerification
                                       ? null
-                                      : () => _checkEmailVerification(),
+                                                    : () =>
+                                                        _checkEmailVerification(),
                                   icon: _checkingVerification
                                       ? const SizedBox(
                                           width: 16,
                                           height: 16,
-                                          child: CircularProgressIndicator(
+                                                        child:
+                                                            CircularProgressIndicator(
                                             strokeWidth: 2,
                                           ),
                                         )
                                       : const Icon(
-                                          Icons.mark_email_read_outlined,
+                                                        Icons
+                                                            .mark_email_read_outlined,
                                         ),
-                                  label: Text(a.t('checkVerification')),
+                                                label: Text(
+                                                    a.t('checkVerification')),
                                 ),
                                 TextButton.icon(
                                   onPressed: busy ||
@@ -3714,20 +3779,25 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                                       ? const SizedBox(
                                           width: 16,
                                           height: 16,
-                                          child: CircularProgressIndicator(
+                                                        child:
+                                                            CircularProgressIndicator(
                                             strokeWidth: 2,
                                           ),
                                         )
                                       : const Icon(
-                                          Icons.mark_email_unread_outlined,
+                                                        Icons
+                                                            .mark_email_unread_outlined,
                                         ),
                                   label: Text(
                                     _resendWaitSeconds > 0
-                                        ? a.t('resendCountdown').replaceAll(
+                                                      ? a
+                                                          .t('resendCountdown')
+                                                          .replaceAll(
                                               '{seconds}',
                                               '$_resendWaitSeconds',
                                             )
-                                        : a.t('resendVerification'),
+                                                      : a.t(
+                                                          'resendVerification'),
                                   ),
                                 ),
                               ],
@@ -3742,21 +3812,122 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.shield_outlined, size: 16, color: p.accent),
+                                  Icon(Icons.shield_outlined,
+                                      size: 16, color: p.accent),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         a.t('privacyNote'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 11, color: p.hint),
+                                      style: TextStyle(
+                                          fontSize: 11, color: p.hint),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _authBrandPanel(AppController a, Pal p) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 560),
+      padding: const EdgeInsets.all(AppSpacing.x8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.extraLarge),
+        gradient: LinearGradient(colors: p.hero),
+        border: Border.all(color: cyan.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: blue.withValues(alpha: 0.18),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
                     ),
                   ],
                 ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppLogo(size: 76),
+          const SizedBox(height: AppSpacing.x6),
+          Text(
+            a.t('tagline'),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.x3),
+          Text(
+            a.t('welcomeHeading'),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.x3),
+          Text(
+            a.t('welcomeBody'),
+            style: const TextStyle(color: Colors.white70, height: 1.6),
+          ),
+          const SizedBox(height: AppSpacing.x8),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.x4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.health_and_safety_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                const SizedBox(width: AppSpacing.x3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        a.t('aiAnalysis'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.x1),
+                      Text(
+                        a.t('aiAnalysisDesc'),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
               ],
             ),
           ),
+              ],
+            ),
         ),
+        ],
       ),
     );
   }
@@ -3764,19 +3935,26 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
   Widget _tab(String text, bool selected, VoidCallback onTap) {
     final p = Pal.of(context);
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          child: InkWell(
         onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.medium),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.symmetric(vertical: 13),
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.x3),
           decoration: BoxDecoration(
             gradient: selected
                 ? const LinearGradient(
                     colors: [Color(0xFF087CFF), Color(0xFF4640B9)],
                   )
                 : null,
-            borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.medium),
           ),
           child: Text(
             text,
@@ -3787,6 +3965,8 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
               color: selected ? Colors.white : p.hint,
             ),
           ),
+        ),
+      ),
         ),
       ),
     );
@@ -3982,6 +4162,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int selectedIndex = 0;
+  String _historySearchQuery = '';
+  String? _selectedHistoryScanKey;
   RoutineController? _observedRoutineController;
   StreamSubscription<Uri>? _widgetLinkSubscription;
 
@@ -4306,8 +4488,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         changeOverTime: _changeController.text,
         onUploadProgress: (sentBytes, totalBytes) {
           if (!mounted) return;
-          final progress =
-              totalBytes == 0 ? 0.0 : sentBytes / totalBytes;
+          final progress = totalBytes == 0 ? 0.0 : sentBytes / totalBytes;
           final boundedProgress = progress.clamp(0, 1).toDouble();
           if ((boundedProgress * 100).round() ==
                   (_uploadProgress * 100).round() &&
@@ -4368,8 +4549,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               filename: pickedName,
               onProgress: (sentBytes, totalBytes) {
                 if (!mounted) return;
-                final progress =
-                    totalBytes == 0 ? 0.0 : sentBytes / totalBytes;
+                final progress = totalBytes == 0 ? 0.0 : sentBytes / totalBytes;
                 final boundedProgress = progress.clamp(0, 1).toDouble();
                 if ((boundedProgress * 100).round() ==
                     (_uploadProgress * 100).round()) {
@@ -4576,7 +4756,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Widget _topBar(AppController a, Pal p) {
+  Widget _topBar(AppController a, Pal p, {bool showLogo = true}) {
     final titles = [
       'Skin AI',
       a.t('history'),
@@ -4609,8 +4789,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Row(
         children: [
+          if (showLogo) ...[
           const AppLogo(size: 36),
           const SizedBox(width: 12),
+          ],
           Expanded(
             child: Text(
               titles[selectedIndex],
@@ -4690,10 +4872,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final p = Pal.of(context);
 
     return NeonBackground(
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final viewport = AppBreakpoints.fromWidth(constraints.maxWidth);
+          final mainPanel = _dashboardMainPanel(a, p);
+
+          return switch (viewport) {
+            AppViewport.compact => Column(
+                children: [
+                  Expanded(child: mainPanel),
+                  _bottomNavigation(a, p),
+                ],
+              ),
+            AppViewport.medium => Row(
+                children: [
+                  _tabletNavigation(a, p),
+                  VerticalDivider(width: 1, color: p.border),
+                  Expanded(child: mainPanel),
+                ],
+              ),
+            AppViewport.expanded => Row(
+                children: [
+                  _desktopNavigation(a, p),
+                  VerticalDivider(width: 1, color: p.border),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: AppBreakpoints.contentMaxWidth,
+                        ),
+                        child: mainPanel,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          };
+        },
+      ),
+    );
+  }
+
+  Widget _dashboardMainPanel(AppController a, Pal p) {
+    return Column(
         children: [
-          _topBar(a, p),
+        _topBar(a, p,
+            showLogo: AppBreakpoints.of(context) != AppViewport.expanded),
           Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppBreakpoints.contentMaxWidth,
+              ),
             child: IndexedStack(
               index: selectedIndex,
               children: [
@@ -4704,55 +4934,170 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   controller: a.routineController,
                   language: a.lang.name,
                   accentColor: p.accent,
-                  onOpenWidgets: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => WidgetGalleryScreen(
-                          controller: a.routineController,
-                          language: a.lang.name,
-                        ),
-                      ),
-                    );
-                  },
+                  onOpenWidgets: a.routineController.supportsWidgetPinning
+                      ? () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => WidgetGalleryScreen(
+                                controller: a.routineController,
+                                language: a.lang.name,
+                              ),
+                            ),
+                          );
+                        }
+                      : null,
                 ),
                 SettingsScreen(onLogout: _confirmSignOut),
               ],
             ),
           ),
-          NavigationBar(
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<(IconData, IconData, String)> _navigationItems(AppController a) => [
+        (Icons.home_outlined, Icons.home, a.t('navHome')),
+        (Icons.history, Icons.history, a.t('navHistory')),
+        (
+          Icons.center_focus_weak,
+          Icons.center_focus_strong,
+          a.t('navScan'),
+        ),
+        (
+          Icons.checklist_outlined,
+          Icons.checklist_rounded,
+          a.routineText('routines'),
+        ),
+        (
+          Icons.settings_outlined,
+          Icons.settings_rounded,
+          a.t('settings'),
+        ),
+      ];
+
+  Widget _bottomNavigation(AppController a, Pal p) {
+    return NavigationBar(
             backgroundColor: p.nav,
             indicatorColor: p.accent.withValues(alpha: 0.18),
             selectedIndex: selectedIndex,
-            onDestinationSelected: (index) {
-              _selectTab(index);
-            },
+      onDestinationSelected: _selectTab,
             destinations: [
+        for (final (icon, selectedIcon, label) in _navigationItems(a))
               NavigationDestination(
-                icon: const Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home, color: p.accent),
-                label: a.t('navHome'),
+            icon: Icon(icon),
+            selectedIcon: Icon(selectedIcon, color: p.accent),
+            label: label,
               ),
-              NavigationDestination(
-                icon: const Icon(Icons.history),
-                selectedIcon: Icon(Icons.history, color: p.accent),
-                label: a.t('navHistory'),
+      ],
+    );
+  }
+
+  Widget _tabletNavigation(AppController a, Pal p) {
+    return SizedBox(
+      width: 88,
+      child: NavigationRail(
+        backgroundColor: p.nav,
+        minWidth: 88,
+        labelType: NavigationRailLabelType.all,
+        selectedIndex: selectedIndex,
+        onDestinationSelected: _selectTab,
+        destinations: [
+          for (final (icon, selectedIcon, label) in _navigationItems(a))
+            NavigationRailDestination(
+              icon: Icon(icon),
+              selectedIcon: Icon(selectedIcon, color: p.accent),
+              label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
-              NavigationDestination(
-                icon: const Icon(Icons.center_focus_weak),
-                selectedIcon: Icon(Icons.center_focus_strong, color: p.accent),
-                label: a.t('navScan'),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopNavigation(AppController a, Pal p) {
+    final items = _navigationItems(a);
+    return Container(
+      width: 248,
+      color: p.nav,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(20, 22, 16, 26),
+            child: Row(
+              children: [
+                const AppLogo(size: 40),
+                const SizedBox(width: 12),
+                Text(
+                  'SkinAI',
+                  style: TextStyle(
+                    color: p.text,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final (icon, selectedIcon, label) = items[index];
+                final selected = selectedIndex == index;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Semantics(
+                    button: true,
+                    selected: selected,
+                    label: label,
+                    child: Material(
+                      color: selected
+                          ? p.accent.withValues(alpha: 0.14)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.medium),
+                      child: InkWell(
+                        key: ValueKey('dashboard-nav-$index'),
+                        borderRadius: BorderRadius.circular(AppRadius.medium),
+                        onTap: () => _selectTab(index),
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                selected ? selectedIcon : icon,
+                                color: selected ? p.accent : p.sub,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: selected ? p.accent : p.sub,
+                                    fontWeight: selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
               ),
-              NavigationDestination(
-                icon: const Icon(Icons.checklist_outlined),
-                selectedIcon: Icon(Icons.checklist_rounded, color: p.accent),
-                label: a.routineText('routines'),
               ),
-              NavigationDestination(
-                icon: const Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings_rounded, color: p.accent),
-                label: a.t('settings'),
               ),
             ],
+          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -4762,10 +5107,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ---------- Home ----------
 
   Widget _home(AppController a, Pal p) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final primaryColumn = [
+          _homeHeroCard(a, p),
+          const SizedBox(height: AppSpacing.x6),
+          _homeQuickActions(a, p),
+          const SizedBox(height: AppSpacing.x6),
+          _homeRecentScans(a, p),
+        ];
+        final secondaryColumn = [
+          _homeChatCard(a),
+          const SizedBox(height: AppSpacing.x6),
+          _homeWorkspace(a, p),
+          const SizedBox(height: AppSpacing.x6),
+          _homeTips(a, p),
+          const SizedBox(height: AppSpacing.x4),
+          _homeDisclaimer(a, p),
+        ];
+        final isWide = constraints.maxWidth >= 900;
+
     return ListView(
-      padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(AppSpacing.x6),
       children: [
-        const SizedBox(height: 6),
         Text(
           '${a.t('hello')} ${a.userName} 👋',
           style: TextStyle(
@@ -4774,16 +5138,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: p.text,
           ),
         ),
-        const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.x2),
         Text(a.t('homeSub'), style: TextStyle(color: p.sub)),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(23),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(25),
-            gradient: LinearGradient(colors: p.hero),
-            border: Border.all(color: cyan.withValues(alpha: 0.25)),
-            boxShadow: [
+            const SizedBox(height: AppSpacing.x6),
+            if (isWide)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: Column(children: primaryColumn)),
+                  const SizedBox(width: AppSpacing.x6),
+                  Expanded(child: Column(children: secondaryColumn)),
+                ],
+              )
+            else
+              Column(
+                children: [
+                  _homeHeroCard(a, p),
+                  const SizedBox(height: AppSpacing.x6),
+                  _homeChatCard(a),
+                  const SizedBox(height: AppSpacing.x6),
+                  _homeQuickActions(a, p),
+                  const SizedBox(height: AppSpacing.x6),
+                  _homeWorkspace(a, p),
+                  const SizedBox(height: AppSpacing.x6),
+                  _homeRecentScans(a, p),
+                  const SizedBox(height: AppSpacing.x6),
+                  _homeTips(a, p),
+                  const SizedBox(height: AppSpacing.x4),
+                  _homeDisclaimer(a, p),
+                ],
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _homeHeroCard(AppController a, Pal p) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.x6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.extraLarge),
+        gradient: LinearGradient(colors: p.hero),
+        border: Border.all(color: cyan.withValues(alpha: 0.25)),
+        boxShadow: [
               BoxShadow(
                 color: blue.withValues(alpha: 0.22),
                 blurRadius: 24,
@@ -4794,9 +5192,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.face_retouching_natural,
-                  color: Colors.white, size: 42),
-              const SizedBox(height: 18),
+          const Icon(
+            Icons.face_retouching_natural,
+            color: Colors.white,
+            size: 42,
+          ),
+          const SizedBox(height: AppSpacing.x4),
               Text(
                 a.t('aiAnalysis'),
                 style: const TextStyle(
@@ -4805,12 +5206,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.x2),
               Text(
                 a.t('aiAnalysisDesc'),
                 style: const TextStyle(color: Colors.white70, height: 1.6),
               ),
-              const SizedBox(height: 22),
+          const SizedBox(height: AppSpacing.x6),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -4820,19 +5221,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF0B3D91),
-                    padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.x4),
+                minimumSize: const Size.fromHeight(48),
                   ),
                 ),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 26),
-        Material(
+    );
+  }
+
+  Widget _homeChatCard(AppController a) {
+    return Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(AppRadius.extraLarge),
           child: InkWell(
-            borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.extraLarge),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => SkinChatScreen(
@@ -4842,9 +5246,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             child: Ink(
-              padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(AppSpacing.x4),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(AppRadius.extraLarge),
                 gradient: const LinearGradient(
                   colors: [Color(0xFF112B49), Color(0xFF20234D)],
                 ),
@@ -4859,7 +5263,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: Color(0xFF06202B),
                     ),
                   ),
-                  const SizedBox(width: 14),
+              const SizedBox(width: AppSpacing.x3),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4872,15 +5276,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.x1),
                         Text(
-                          a.lang == AppLang.ar
-                              ? 'ارفع صورة وتحدث عنها مع مساعدك'
-                              : a.lang == AppLang.ku
-                                  ? 'وێنە باربکە و لەبارەی گفتوگۆ بکە'
-                                  : a.lang == AppLang.badini
-                                      ? 'وێنە بارکە و دەر بارێ وێ گفتوگۆ بکە'
-                                      : 'Upload an image and ask follow-up questions',
+                      a.t('skinChatDescription'),
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 12,
@@ -4889,26 +5287,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_rounded, color: Colors.white),
-                ],
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                textDirection: a.isRtl ? TextDirection.rtl : TextDirection.ltr,
               ),
+            ],
             ),
           ),
         ),
-        const SizedBox(height: 26),
-        Text(
-          a.t('quick'),
-          style: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.bold,
-            color: p.text,
-          ),
-        ),
-        const SizedBox(height: 14),
+    );
+  }
+
+  Widget _homeQuickActions(AppController a, Pal p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _homeSectionTitle(a.t('quick'), p),
+        const SizedBox(height: AppSpacing.x3),
         Row(
           children: [
-            _quickAction(p, Icons.center_focus_strong, a.t('navScan'),
-                () => _selectTab(2)),
+            _quickAction(
+              p,
+              Icons.center_focus_strong,
+              a.t('navScan'),
+              () => _selectTab(2),
+            ),
             _quickAction(p, Icons.photo_library_outlined, a.t('gallery'), () {
               _selectTab(2);
             }),
@@ -4918,16 +5322,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _quickAction(p, Icons.search_rounded, a.t('search'), _openSearch),
           ],
         ),
-        const SizedBox(height: 26),
-        Text(
-          a.t('workspace'),
-          style: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.bold,
-            color: p.text,
-          ),
-        ),
-        const SizedBox(height: 14),
+      ],
+    );
+  }
+
+  Widget _homeWorkspace(AppController a, Pal p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _homeSectionTitle(a.t('workspace'), p),
+        const SizedBox(height: AppSpacing.x3),
         Row(
           children: [
             Expanded(
@@ -4936,43 +5340,113 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Icons.history_rounded,
                 a.t('history'),
                 a.t('historyShort'),
-                () => setState(() => selectedIndex = 1),
+                () => _selectTab(1),
               ),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: AppSpacing.x3),
             Expanded(
               child: _featureCard(
                 p,
                 Icons.settings_outlined,
                 a.t('settings'),
                 a.t('profileShort'),
-                () => setState(() => selectedIndex = 4),
+                () => _selectTab(4),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 26),
-        Text(
-          a.t('tips'),
+      ],
+    );
+  }
+
+  Widget _homeRecentScans(AppController a, Pal p) {
+    final scans = a.scans.take(3).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _homeSectionTitle(a.t('recentScans'), p),
+        const SizedBox(height: AppSpacing.x3),
+        if (scans.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.x4),
+            decoration: cardDecoration(p, radius: AppRadius.large),
+            child: Text(
+              a.t('noScans'),
+              style: TextStyle(color: p.sub),
+            ),
+          )
+        else
+          for (final scan in scans)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.x2),
+              child: Material(
+                color: p.panel,
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.large),
+                  onTap: () => _selectTab(1),
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 64),
+                    padding: const EdgeInsets.all(AppSpacing.x3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.large),
+                      border: Border.all(color: p.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.analytics_outlined, color: p.accent),
+                        const SizedBox(width: AppSpacing.x3),
+                        Expanded(
+                          child: Text(
+                            _displayScanLabel(a, scan.cls),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.bold,
             color: p.text,
+                              fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 14),
+                        ),
+                        Text(
+                          '${scan.conf.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            color: p.accent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+      ],
+    );
+  }
+
+  Widget _homeTips(AppController a, Pal p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _homeSectionTitle(a.t('tips'), p),
+        const SizedBox(height: AppSpacing.x3),
         _tip(p, Icons.wb_sunny_outlined, a.t('tip1t'), a.t('tip1d')),
         _tip(p, Icons.water_drop_outlined, a.t('tip2t'), a.t('tip2d')),
         _tip(p, Icons.search_rounded, a.t('tip3t'), a.t('tip3d')),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: cardDecoration(p, radius: 17),
+      ],
+    );
+  }
+
+  Widget _homeDisclaimer(AppController a, Pal p) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.x4),
+      decoration: cardDecoration(p, radius: AppRadius.large),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.health_and_safety, color: p.accent),
-              const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.x3),
               Expanded(
                 child: Text(
                   a.t('disclaimer'),
@@ -4981,9 +5455,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+    );
+  }
+
+  Widget _homeSectionTitle(String title, Pal p) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 19,
+        fontWeight: FontWeight.bold,
+        color: p.text,
         ),
-        const SizedBox(height: 10),
-      ],
     );
   }
 
@@ -5616,10 +6098,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!bodySelectionConfirmed) return _bodySelectionScreen(a, p);
 
     final r = result;
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        const SizedBox(height: 18),
+    final scanDetails = <Widget>[
+      const SizedBox(height: AppSpacing.x3),
         Text(
           a.t('scanner'),
           style: TextStyle(
@@ -5628,24 +6108,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: p.text,
           ),
         ),
-        const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.x2),
         Text(a.t('scannerDesc'), style: TextStyle(color: p.sub, height: 1.6)),
-        const SizedBox(height: 14),
+      const SizedBox(height: AppSpacing.x3),
         _selectedScanTaskCard(a, p),
-        const SizedBox(height: 14),
+      const SizedBox(height: AppSpacing.x3),
         _photoGuidanceCard(a, p),
-        _optionalTextField(
-          a,
-          p,
-          _locationController,
-          'scanLocation',
-        ),
-        _optionalTextField(
-          a,
-          p,
-          _durationController,
-          'symptomsDuration',
-        ),
+      _optionalTextField(a, p, _locationController, 'scanLocation'),
+      _optionalTextField(a, p, _durationController, 'symptomsDuration'),
         _optionalTextField(
           a,
           p,
@@ -5661,13 +6131,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           maxLines: 2,
         ),
         _medicalDisclaimerCard(a, p),
-        const SizedBox(height: 24),
+    ];
+    final scanInput = <Widget>[
+      const SizedBox(height: AppSpacing.x3),
         Container(
           height: 240,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: p.panel,
-            borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(AppRadius.extraLarge),
             border: Border.all(color: p.accent.withValues(alpha: 0.35)),
           ),
           child: picked != null
@@ -5707,7 +6179,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               )
                             else
                               const CircularProgressIndicator(),
-                            const SizedBox(height: 14),
+                          const SizedBox(height: AppSpacing.x3),
                             Text(
                               _uploadingImage
                                   ? '${a.t('uploadingImageProgress')} ${(_uploadProgress * 100).round()}%'
@@ -5723,7 +6195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.add_a_photo_outlined, size: 65, color: p.accent),
-                    const SizedBox(height: 18),
+                  const SizedBox(height: AppSpacing.x4),
                     Text(
                       a.t('pickPrompt'),
                       style: TextStyle(
@@ -5735,7 +6207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
         ),
-        const SizedBox(height: 22),
+      const SizedBox(height: AppSpacing.x3),
         PanelTile(
           icon: Icons.photo_library_outlined,
           title: a.t('gallery'),
@@ -5749,7 +6221,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: analyzing ? () {} : () => _pick(ImageSource.camera),
         ),
         SwitchListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
           value: a.retainHistory,
           onChanged: analyzing
               ? null
@@ -5773,7 +6245,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           activeThumbColor: p.accent,
         ),
         SwitchListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
           value: _accountHistoryConsent,
           onChanged: analyzing
               ? null
@@ -5792,7 +6264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           activeThumbColor: p.accent,
         ),
         SwitchListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
           value: _originalImageConsent,
           onChanged: analyzing ||
                   !_accountHistoryConsent ||
@@ -5815,7 +6287,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           activeThumbColor: p.accent,
         ),
-        const SizedBox(height: 6),
+      const SizedBox(height: AppSpacing.x2),
         Opacity(
           opacity: (picked == null || analyzing) ? 0.5 : 1,
           child: NeonButton(
@@ -5826,11 +6298,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         if (scanError != null)
           Container(
-            margin: const EdgeInsets.only(top: 18),
-            padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.only(top: AppSpacing.x4),
+          padding: const EdgeInsets.all(AppSpacing.x3),
             decoration: BoxDecoration(
               color: const Color(0xFFEF4444).withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.large),
               border: Border.all(
                 color: const Color(0xFFEF4444).withValues(alpha: 0.45),
               ),
@@ -5842,7 +6314,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Icons.error_outline_rounded,
                   color: Color(0xFFEF4444),
                 ),
-                const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.x2),
                 Expanded(
                   child: Text(
                     scanError!,
@@ -5857,12 +6329,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         if (r != null) _resultCard(a, p, r),
-        const SizedBox(height: 18),
+      const SizedBox(height: AppSpacing.x4),
         Text(
           a.t('privImg'),
           style: TextStyle(color: p.hint, fontSize: 12, height: 1.6),
         ),
+      const SizedBox(height: AppSpacing.x4),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 900) {
+          return ListView(
+            padding: const EdgeInsets.all(AppSpacing.x6),
+            children: [...scanDetails, ...scanInput],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 5,
+              child: ListView(
+                key: const ValueKey('scan-details-column'),
+                padding: const EdgeInsets.all(AppSpacing.x6),
+                children: scanDetails,
+              ),
+            ),
+            Expanded(
+              flex: 4,
+              child: ListView(
+                key: const ValueKey('scan-input-column'),
+                padding: const EdgeInsets.all(AppSpacing.x6),
+                children: scanInput,
+              ),
+            ),
       ],
+    );
+      },
     );
   }
 
@@ -5953,11 +6457,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ---------- History ----------
 
   Widget _history(AppController a, Pal p) {
-    final scans = a.scans;
-    return ListView(
-      padding: const EdgeInsets.all(24),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final allScans = a.scans;
+        final query = _historySearchQuery.trim().toLowerCase();
+        final scans = allScans.where((scan) {
+          if (query.isEmpty) return true;
+          final searchable = [
+            _displayScanLabel(a, scan.cls),
+            scan.bodyLocation ?? '',
+            scan.bodyPart ?? '',
+            scan.bodySubregion ?? '',
+            scan.concernType ?? '',
+            scan.summary ?? '',
+            scan.notes ?? '',
+            scan.ts.toString(),
+          ].join(' ').toLowerCase();
+          return searchable.contains(query);
+        }).toList();
+        final wide = constraints.maxWidth >= 900;
+        final selected = scans
+                .where(
+                    (scan) => _historyScanKey(scan) == _selectedHistoryScanKey)
+                .firstOrNull ??
+            scans.firstOrNull;
+        final activeKey = selected == null ? null : _historyScanKey(selected);
+
+        final list = ListView(
+          padding: const EdgeInsets.all(AppSpacing.x6),
       children: [
-        const SizedBox(height: 18),
+            const SizedBox(height: AppSpacing.x3),
         Row(
           children: [
             Expanded(
@@ -5984,15 +6513,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        Text(a.t('historyDesc'), style: TextStyle(color: p.sub, height: 1.6)),
-        const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.x3),
+            Text(
+              a.t('historyDesc'),
+              style: TextStyle(color: p.sub, height: 1.6),
+            ),
+            const SizedBox(height: AppSpacing.x1),
         Text(
           a.t('historySourceDesc'),
           style: TextStyle(color: p.hint, fontSize: 12, height: 1.5),
         ),
+            const SizedBox(height: AppSpacing.x4),
+            TextField(
+              onChanged: (value) => setState(() => _historySearchQuery = value),
+              decoration: InputDecoration(
+                hintText: a.t('searchHint'),
+                prefixIcon: const Icon(Icons.search_rounded),
+                filled: true,
+                fillColor: p.panel,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                  borderSide: BorderSide(color: p.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                  borderSide: BorderSide(color: p.border),
+                ),
+              ),
+            ),
         if (_accountHistoryErrorStatus != null) ...[
-          const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.x3),
           Text(
             _accountHistoryErrorStatus == 401
                 ? a.t('secureHistoryAuthError')
@@ -6002,13 +6552,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: const TextStyle(color: Color(0xFFEF4444)),
           ),
         ],
-        const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.x4),
         if (scans.isEmpty) ...[
-          const SizedBox(height: 25),
+              const SizedBox(height: AppSpacing.x6),
           Icon(Icons.history_rounded, size: 75, color: p.accent),
-          const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.x4),
           Text(
-            a.t('noScans'),
+                query.isEmpty ? a.t('noScans') : a.t('noResults'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 21,
@@ -6016,13 +6566,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: p.text,
             ),
           ),
-          const SizedBox(height: 10),
+              if (query.isEmpty) ...[
+                const SizedBox(height: AppSpacing.x2),
           Text(
             a.t('noScansDesc2'),
             textAlign: TextAlign.center,
             style: TextStyle(color: p.hint, height: 1.6),
           ),
         ],
+            ],
         if (scans.any((scan) => !scan.accountRecord)) ...[
           Align(
             alignment: AlignmentDirectional.centerEnd,
@@ -6032,15 +6584,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context: context,
                   builder: (dialogContext) => AlertDialog(
                     backgroundColor: p.panel,
-                    title: Text(a.t('clearLocalHistory'),
-                        style: TextStyle(color: p.text)),
+                        title: Text(
+                          a.t('clearLocalHistory'),
+                          style: TextStyle(color: p.text),
+                        ),
                     content: Text(
                       a.t('clearLocalHistoryConfirm'),
                       style: TextStyle(color: p.sub),
                     ),
                     actions: [
                       TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, false),
+                            onPressed: () =>
+                                Navigator.pop(dialogContext, false),
                         child: Text(a.t('cancel')),
                       ),
                       FilledButton(
@@ -6054,34 +6609,153 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   try {
                     await a.clearScans();
                   } on Exception {
-                    if (mounted) {
+                        if (context.mounted) {
                       showNotice(context, a.t('historyDeleteFailed'));
                     }
                   }
                 }
               },
-              icon:
-                  Icon(Icons.delete_outline_rounded, color: p.accent, size: 18),
-              label: Text(a.t('clearLocalHistory'),
-                  style: TextStyle(color: p.accent)),
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: p.accent,
+                    size: 18,
+                  ),
+                  label: Text(
+                    a.t('clearLocalHistory'),
+                    style: TextStyle(color: p.accent),
+                  ),
+                ),
+              ),
+            ],
+            for (final scan in scans)
+              _scanTile(
+                a,
+                p,
+                scan,
+                selectOnly: wide,
+                isSelected: _historyScanKey(scan) == activeKey,
+              ),
+          ],
+        );
+
+        if (!wide) return list;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(flex: 6, child: list),
+            Expanded(
+              flex: 5,
+              child: _historyDetailPane(a, p, selected),
             ),
-          ),
-        ],
-        for (final sc in scans) _scanTile(a, p, sc),
-      ],
+          ],
+        );
+      },
     );
   }
 
-  Widget _scanTile(AppController a, Pal p, ScanRecord sc) {
+  String _historyScanKey(ScanRecord scan) =>
+      scan.analysisId ?? '${scan.userId}:${scan.ts}:${scan.cls}:${scan.conf}';
+
+  Widget _historyDetailPane(
+    AppController a,
+    Pal p,
+    ScanRecord? scan,
+  ) {
+    if (scan == null) return const SizedBox.shrink();
+    final date = DateTime.fromMillisecondsSinceEpoch(scan.ts);
+    final location = scan.bodyLocation ??
+        [
+          if (scan.bodySide != null) scan.bodySide!,
+          if (scan.bodySubregion != null) scan.bodySubregion!,
+          if (scan.bodyPart != null && scan.bodySubregion == null)
+            scan.bodyPart!,
+        ].join(' ');
+
+    return Container(
+      margin: const EdgeInsets.all(AppSpacing.x6),
+      padding: const EdgeInsets.all(AppSpacing.x6),
+      decoration: cardDecoration(p, radius: AppRadius.extraLarge),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.analytics_outlined, color: p.accent),
+                const SizedBox(width: AppSpacing.x3),
+                Expanded(
+                  child: Text(
+                    _displayScanLabel(a, scan.cls),
+                    style: TextStyle(
+                      color: p.text,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.x6),
+            Text(
+              '${a.t('scanDate')}: ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+              style: TextStyle(color: p.sub),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            Text(
+              '${a.t('scanConfidence')}: ${scan.conf.toStringAsFixed(1)}%',
+              style: TextStyle(color: p.sub),
+            ),
+            if (location.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.x2),
+              Text(
+                '${a.t('bodyLocation')}: $location',
+                style: TextStyle(color: p.sub),
+            ),
+            ],
+            if (scan.summary?.isNotEmpty == true) ...[
+              const SizedBox(height: AppSpacing.x6),
+              SelectableText(
+                scan.summary!,
+                style: TextStyle(color: p.sub, height: 1.5),
+          ),
+        ],
+            const SizedBox(height: AppSpacing.x6),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showScanDetails(a, p, scan),
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: Text(a.t('viewDetails')),
+              ),
+            ),
+      ],
+        ),
+      ),
+    );
+  }
+
+  Widget _scanTile(
+    AppController a,
+    Pal p,
+    ScanRecord sc, {
+    required bool selectOnly,
+    required bool isSelected,
+  }) {
     final d = DateTime.fromMillisecondsSinceEpoch(sc.ts);
     String two(int n) => n.toString().padLeft(2, '0');
 
     return GestureDetector(
-      onTap: () => _showScanDetails(a, p, sc),
+      onTap: selectOnly
+          ? () => setState(() => _selectedHistoryScanKey = _historyScanKey(sc))
+          : () => _showScanDetails(a, p, sc),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
-        decoration: cardDecoration(p, radius: 17),
+        decoration: BoxDecoration(
+          color: p.panel,
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          border: Border.all(color: isSelected ? p.accent : p.border),
+        ),
         child: Row(
           children: [
             Container(
@@ -7437,30 +8111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
 
-    return Material(
-      color: canvas,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final horizontalPadding = constraints.maxWidth < 380 ? 16.0 : 22.0;
-          return ListView(
-            padding: EdgeInsets.fromLTRB(
-                horizontalPadding, 14, horizontalPadding, 28),
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _ProfileCard(
-                        name: a.userName.isEmpty
-                            ? text('skinAiMember')
-                            : a.userName,
-                        email: a.userEmail,
-                        photoUrl: photoUrl,
-                        memberLabel: memberLine,
-                        onTap: _editProfile,
-                      ),
+    final settingsSections = <Widget>[
                       section(
                         text('skinAiSettings'),
                         Column(
@@ -7509,13 +8160,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Chip(
                                 label: Text(
                                   summary,
-                                  style: TextStyle(
-                                    color: ink,
-                                    fontSize: 12,
+                  style: TextStyle(color: ink, fontSize: 12),
                                   ),
-                                ),
-                                backgroundColor:
-                                    blueAccent.withValues(alpha: 0.1),
+                backgroundColor: blueAccent.withValues(alpha: 0.1),
                                 side: BorderSide(color: border),
                               ),
                           ],
@@ -7565,8 +8212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ? 'cyanAccent'
                                     : a.accentColor == const Color(0xFF7B2CBF)
                                         ? 'purpleAccent'
-                                        : a.accentColor ==
-                                                const Color(0xFF10B981)
+                        : a.accentColor == const Color(0xFF10B981)
                                             ? 'emeraldAccent'
                                             : 'electricBlue',
                               ),
@@ -7577,9 +8223,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             preferenceRow(
                               icon: Icons.notifications_active_outlined,
                               title: text('notifications'),
-                              value: a.notificationsEnabled
-                                  ? text('enabled')
-                                  : text('disabled'),
+              value:
+                  a.notificationsEnabled ? text('enabled') : text('disabled'),
                               accent: blueAccent,
                               last: true,
                               onTap: () => unawaited(
@@ -7588,8 +8233,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               trailing: Switch.adaptive(
                                 value: a.notificationsEnabled,
                                 activeThumbColor: blueAccent,
-                                onChanged: (value) =>
-                                    unawaited(_setNotifications(value)),
+                onChanged: (value) => unawaited(_setNotifications(value)),
                               ),
                             ),
                           ],
@@ -7606,11 +8250,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               child: Text(
                                 text('howSkinAiWorksBody'),
                                 textAlign: TextAlign.start,
-                                style: TextStyle(
-                                  color: muted,
-                                  height: 1.55,
-                                  fontSize: 13,
-                                ),
+                style: TextStyle(color: muted, height: 1.55, fontSize: 13),
                               ),
                             ),
                             infoTile(
@@ -7619,11 +8259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               child: Text(
                                 text('scanProviderDescription'),
                                 textAlign: TextAlign.start,
-                                style: TextStyle(
-                                  color: muted,
-                                  height: 1.55,
-                                  fontSize: 13,
-                                ),
+                style: TextStyle(color: muted, height: 1.55, fontSize: 13),
                               ),
                             ),
                           ],
@@ -7647,10 +8283,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               value: text('privacySub'),
                               accent: violetAccent,
                               onTap: () => unawaited(
-                                _showInformation(
-                                  'privacy',
-                                  text('privacyPolicy'),
-                                ),
+                _showInformation('privacy', text('privacyPolicy')),
                               ),
                             ),
                             divider(),
@@ -7670,11 +8303,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      Material(
-                        color: isDark
-                            ? const Color(0xFF3B1F2B)
-                            : const Color(0xFFFFF4F3),
+      Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: Material(
+          color: isDark ? const Color(0xFF3B1F2B) : const Color(0xFFFFF4F3),
                         borderRadius: BorderRadius.circular(18),
                         child: InkWell(
                           onTap: widget.onLogout,
@@ -7717,6 +8349,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                       ),
+      ),
+    ];
+
+    return Material(
+      color: canvas,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isExpanded = AppBreakpoints.fromWidth(constraints.maxWidth) ==
+              AppViewport.expanded;
+          final horizontalPadding =
+              constraints.maxWidth < 380 ? AppSpacing.x4 : AppSpacing.x6;
+          final sectionColumns = [
+            settingsSections.take(3).toList(),
+            settingsSections.skip(3).toList(),
+          ];
+          return ListView(
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              AppSpacing.x3,
+              horizontalPadding,
+              AppSpacing.x8,
+            ),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: AppBreakpoints.contentMaxWidth,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ProfileCard(
+                        name: a.userName.isEmpty
+                            ? text('skinAiMember')
+                            : a.userName,
+                        email: a.userEmail,
+                        photoUrl: photoUrl,
+                        memberLabel: memberLine,
+                        onTap: _editProfile,
+                      ),
+                      if (isExpanded)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var index = 0;
+                                index < sectionColumns.length;
+                                index++) ...[
+                              if (index > 0)
+                                const SizedBox(width: AppSpacing.x6),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: sectionColumns[index],
+                                ),
+                              ),
+                            ],
+                          ],
+                        )
+                      else
+                        ...settingsSections,
                     ],
                   ),
                 ),

@@ -31,6 +31,8 @@ const translationsEn = <String, Map<String, String>>{
     'emailHint': 'you@example.com',
     'password': 'Password',
     'passwordHint': 'At least 8 characters',
+    'showPassword': 'Show password',
+    'hidePassword': 'Hide password',
     'confirm': 'Confirm Password',
     'confirmHint': 'Repeat your password',
     'terms': 'I agree to the Terms and Privacy Policy.',
@@ -187,10 +189,13 @@ const translationsEn = <String, Map<String, String>>{
     'aiAnalysis': 'AI Skin Analysis',
     'aiAnalysisDesc':
         'Choose a skin image to prepare for AI-assisted analysis.',
+    'skinChatDescription': 'Ask SkinAI about your skin and care routine.',
     'scanSkin': 'Scan Your Skin',
     'workspace': 'Your Workspace',
     'history': 'Scan History',
     'historyShort': 'Previous results',
+    'recentScans': 'Recent scans',
+    'viewDetails': 'View full details',
     'profile': 'My Profile',
     'profileShort': 'Account settings',
     'disclaimer':
@@ -293,7 +298,8 @@ const translationsEn = <String, Map<String, String>>{
     'pickFirst': 'Choose an image first.',
     'errPick': 'Could not open the camera or gallery on this device.',
     'pickPrompt': 'Choose a photo to analyze',
-    'privImg': 'Photos are sent to the screening service only after you choose Analyze.',
+    'privImg':
+        'Photos are sent to the screening service only after you choose Analyze.',
     'serverAddr': 'AI server address',
     'serverHint':
         'Emulator: http://10.0.2.2:8000 • Device: http://192.168.1.10:8000',
@@ -458,6 +464,7 @@ const translationsEn = <String, Map<String, String>>{
         'You are all caught up. New updates will appear here.',
     'more': 'More',
     'cancel': 'Cancel',
+    'done': 'Done',
     'masterNotifications': 'Allow notifications',
     'permissionExplanation':
         'SkinAI uses local notifications for reminders you configure. Your device may ask for notification permission.',

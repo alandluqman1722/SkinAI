@@ -13,16 +13,12 @@ abstract interface class RoutineWidgetBridge {
 }
 
 class HomeWidgetBridge implements RoutineWidgetBridge {
-  static const iosAppGroup = 'group.com.example.flutterApplication1';
   static const androidWidgetClass =
       'com.example.flutter_application_1.SkinAIHomeWidgetProvider';
-  static const iosWidgetName = 'SkinAIWidget';
 
   @override
   bool get isSupported =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   @override
   Stream<Uri?> get clicks =>
@@ -40,16 +36,12 @@ class HomeWidgetBridge implements RoutineWidgetBridge {
     }
 
     try {
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        await HomeWidget.setAppGroupId(iosAppGroup);
-      }
       await HomeWidget.saveWidgetData<String>(
         'skinai_snapshot',
         jsonEncode(snapshot),
       );
       final updated = await HomeWidget.updateWidget(
         qualifiedAndroidName: androidWidgetClass,
-        iOSName: iosWidgetName,
       );
       if (updated != true) {
         debugPrint(

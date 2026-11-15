@@ -31,6 +31,8 @@ const translationsAr = <String, Map<String, String>>{
     'emailHint': 'you@example.com',
     'password': 'كلمة المرور',
     'passwordHint': '8 أحرف على الأقل',
+    'showPassword': 'إظهار كلمة المرور',
+    'hidePassword': 'إخفاء كلمة المرور',
     'confirm': 'تأكيد كلمة المرور',
     'confirmHint': 'أعد كتابة كلمة المرور',
     'terms': 'أوافق على الشروط وسياسة الخصوصية.',
@@ -183,10 +185,13 @@ const translationsAr = <String, Map<String, String>>{
     'aiAnalysis': 'تحليل البشرة بالذكاء الاصطناعي',
     'aiAnalysisDesc':
         'اختر صورة للبشرة للتحضير للتحليل بمساعدة الذكاء الاصطناعي.',
+    'skinChatDescription': 'تحدث مع SkinAI عن بشرتك وروتين العناية بها.',
     'scanSkin': 'افحص بشرتك',
     'workspace': 'مساحة العمل',
     'history': 'سجل الفحوصات',
     'historyShort': 'النتائج السابقة',
+    'recentScans': 'الفحوصات الأخيرة',
+    'viewDetails': 'عرض التفاصيل كاملة',
     'profile': 'ملفي الشخصي',
     'profileShort': 'إعدادات الحساب',
     'disclaimer':
@@ -444,6 +449,7 @@ const translationsAr = <String, Map<String, String>>{
     'emptyNotifications': 'لا توجد تحديثات جديدة. ستظهر الإشعارات هنا.',
     'more': 'المزيد',
     'cancel': 'إلغاء',
+    'done': 'تم',
     'masterNotifications': 'السماح بالإشعارات',
     'permissionExplanation':
         'يستخدم SkinAI الإشعارات المحلية للتذكيرات التي تضبطها. قد يطلب جهازك إذن الإشعارات.',

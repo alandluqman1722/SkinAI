@@ -31,6 +31,8 @@ const translationsKu = <String, Map<String, String>>{
     'emailHint': 'you@example.com',
     'password': 'تێپەڕەوشە',
     'passwordHint': 'لانیکەم 8 پیت',
+    'showPassword': 'پیشاندانی تێپەڕەوشە',
+    'hidePassword': 'شاردنەوەی تێپەڕەوشە',
     'confirm': 'دووپاتکردنەوەی تێپەڕەوشە',
     'confirmHint': 'تێپەڕەوشەکە دووبارە بنووسە',
     'terms': 'من ڕازیم بە مەرجەکان و سیاسەتی تایبەتمەندی.',
@@ -192,10 +194,14 @@ const translationsKu = <String, Map<String, String>>{
     'aiAnalysis': 'شیکاری پێستی AI',
     'aiAnalysisDesc':
         'وێنەیەکی پێست هەڵبژێرە بۆ ئامادەکردن بۆ شیکاری یارمەتیدەری AI.',
+    'skinChatDescription':
+        'لەبارەی پێست و ڕۆتینی چاودێرییەکەت لەگەڵ SkinAI گفتوگۆ بکە.',
     'scanSkin': 'پێستت سکان بکە',
     'workspace': 'شوێنی کارکردن',
     'history': 'مێژووی سکان',
     'historyShort': 'ئەنجامە پێشووەکان',
+    'recentScans': 'دوایین سکانەکان',
+    'viewDetails': 'بینینی هەموو وردەکارییەکان',
     'profile': 'پرۆفایلەکەم',
     'profileShort': 'ڕێکخستنەکانی هەژمار',
     'disclaimer':
@@ -464,6 +470,7 @@ const translationsKu = <String, Map<String, String>>{
         'هەموو شتێک نوێیە. ئاگادارکردنەوە نوێیەکان لێرە دەردەکەون.',
     'more': 'زیاتر',
     'cancel': 'پاشگەزبوونەوە',
+    'done': 'تەواو',
     'masterNotifications': 'ڕێگەدان بە ئاگادارکردنەوە',
     'permissionExplanation':
         'SkinAI ئاگادارکردنەوەی ناوخۆیی بۆ بیرخەرەوە ڕێکخراوەکان بەکاردەهێنێت. ئامێرەکەت لەوانەیە مۆڵەت داوا بکات.',

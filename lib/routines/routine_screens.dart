@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../design/app_design_system.dart';
 import '../localization/app_localizations.dart';
 import 'routine_controller.dart';
 import 'routine_models.dart';
@@ -289,8 +290,7 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
         if (selectedTasks.isEmpty)
           _emptyState()
         else
-          for (final period in RoutinePeriod.values)
-            _periodSection(_selectedDay, period),
+          _periodSections(_selectedDay),
         Align(
           alignment: AlignmentDirectional.centerEnd,
           child: FilledButton.icon(
@@ -341,76 +341,145 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
     final tasks = widget.controller.tasksForDay(day);
     final total = tasks.length;
     final completed = widget.controller.completedCount(day);
-    final theme = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
         if (showProgress) ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _t('todaysProgress'),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '$completed / $total',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: widget.accentColor,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TweenAnimationBuilder<double>(
-                    tween: Tween<double>(
-                      begin: 0,
-                      end: total == 0 ? 0 : completed / total,
-                    ),
-                    duration: const Duration(milliseconds: 400),
-                    builder: (context, progress, _) => LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 9,
-                      borderRadius: BorderRadius.circular(9),
-                      color: widget.accentColor,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$completed ${_t('completed')} • ${total - completed} ${_t('remaining')}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _dailyProgressCard(completed: completed, total: total),
           const SizedBox(height: 8),
         ],
-        if (tasks.isEmpty)
-          _emptyState()
-        else
-          for (final period in RoutinePeriod.values)
-            _periodSection(day, period),
+        if (tasks.isEmpty) _emptyState() else _periodSections(day),
         Align(
           alignment: AlignmentDirectional.centerEnd,
           child: FilledButton.icon(
             onPressed: () => _editTask(day: day),
             icon: const Icon(Icons.add_rounded),
             label: Text(_t('addTask')),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _dailyProgressCard({required int completed, required int total}) {
+    final theme = Theme.of(context);
+    final progress = total == 0 ? 0.0 : completed / total;
+    return Card(
+      key: const ValueKey('routine-daily-progress'),
+            child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x4),
+        child: Row(
+                children: [
+            SizedBox(
+              width: 64,
+              height: 64,
+              child: Stack(
+                alignment: Alignment.center,
+                    children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: progress),
+                    duration: const Duration(milliseconds: 350),
+                    builder: (context, value, _) => CircularProgressIndicator(
+                      value: value,
+                      strokeWidth: 6,
+                      color: widget.accentColor,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                    ),
+                  ),
+                  Text(
+                    '${(progress * 100).round()}%',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                ],
+                      ),
+            ),
+            const SizedBox(width: AppSpacing.x3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                      Text(
+                    _t('todaysProgress'),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                  const SizedBox(height: AppSpacing.x1),
+                  Text(
+                    '$completed / $total ${_t('completed')}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                    ),
+                  const SizedBox(height: AppSpacing.x2),
+                  Wrap(
+                    spacing: AppSpacing.x3,
+                    runSpacing: AppSpacing.x1,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        '${total - completed} ${_t('remaining')}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.local_fire_department_rounded,
+                            color: widget.accentColor,
+                            size: 16,
+                          ),
+                          const SizedBox(width: AppSpacing.x1),
+                          Flexible(
+                            child: Text(
+                              '${widget.controller.currentStreak} ${_t('dayStreak')}',
+                              softWrap: true,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                          ),
+                        ],
+                      ),
+                ],
+              ),
+                ],
+            ),
+          ),
+        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _periodSections(DateTime day) {
+    final sections = [
+      for (final period in RoutinePeriod.values) _periodSection(day, period),
+    ];
+    if (AppBreakpoints.of(context) != AppViewport.expanded) {
+      return Column(children: sections);
+    }
+
+    final middle = (sections.length / 2).ceil();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: sections.take(middle).toList(),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.x4),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: sections.skip(middle).toList(),
           ),
         ),
       ],

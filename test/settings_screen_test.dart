@@ -23,7 +23,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 350));
 
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.text('Settings').first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
@@ -41,9 +41,74 @@ void main() {
     expect(controller.skincareGoal, 'acne');
   });
 
+  testWidgets('expanded settings uses two content columns', (tester) async {
+    _setViewport(tester, const Size(1440, 1000));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    SharedPreferences.setMockInitialValues({});
+    final controller = AppController();
+    await controller.init();
+
+    await tester.pumpWidget(
+      AppScope(
+        controller: controller,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SettingsScreen(onLogout: _noopLogout),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final skinSettings = tester.getTopLeft(find.text('SKIN & AI'));
+    final serviceSettings = tester.getTopLeft(find.text('ABOUT & AI SERVICE'));
+    expect(serviceSettings.dx, greaterThan(skinSettings.dx));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('small Settings layout supports enlarged text', (tester) async {
+    _setViewport(tester, const Size(320, 568));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    SharedPreferences.setMockInitialValues({});
+    final controller = AppController();
+    await controller.init();
+
+    await tester.pumpWidget(
+      AppScope(
+        controller: controller,
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(320, 568),
+              textScaler: TextScaler.linear(1.3),
+            ),
+            child: Scaffold(
+              body: SettingsScreen(onLogout: _noopLogout),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.ensureVisible(find.text('Sensitive'));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('bottom navigation switches across all app tabs', (
     tester,
   ) async {
+    _setViewport(tester, const Size(390, 844));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     SharedPreferences.setMockInitialValues({});
     final controller = AppController();
     await controller.init();
@@ -93,6 +158,116 @@ void main() {
     await controller.setLang(AppLang.ku);
     await tester.pump();
     expect(find.text('هەستیار'), findsOneWidget);
+  });
+
+  testWidgets('dashboard adapts navigation for tablet and desktop widths', (
+    tester,
+  ) async {
+    _setViewport(tester, const Size(800, 1000));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    SharedPreferences.setMockInitialValues({});
+    final controller = AppController();
+    await controller.init();
+
+    await tester.pumpWidget(
+      AppScope(
+        controller: controller,
+        child: const MaterialApp(home: DashboardScreen()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    _setViewport(tester, const Size(1440, 1000));
+    await tester.pump();
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.text('SkinAI'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('small phone home supports enlarged text without overflow', (
+    tester,
+  ) async {
+    _setViewport(tester, const Size(320, 568));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    SharedPreferences.setMockInitialValues({});
+    final controller = AppController();
+    await controller.init();
+
+    await tester.pumpWidget(
+      AppScope(
+        controller: controller,
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(320, 568),
+              textScaler: TextScaler.linear(1.2),
+            ),
+            child: DashboardScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('Recent scans'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop history shows a detail pane and filters scans', (
+    tester,
+  ) async {
+    _setViewport(tester, const Size(1440, 1000));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    SharedPreferences.setMockInitialValues({});
+    final controller = AppController();
+    await controller.init();
+    await controller.addScan(
+      const ScanRecord(
+        cls: 'acne',
+        conf: 72,
+        mel: false,
+        ts: 100,
+      ),
+    );
+    await controller.addScan(
+      const ScanRecord(
+        cls: 'eczema',
+        conf: 68,
+        mel: false,
+        ts: 200,
+      ),
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        controller: controller,
+        child: const MaterialApp(home: DashboardScreen()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Scan History').first);
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('View full details'), findsOneWidget);
+    expect(find.text('eczema'), findsWidgets);
+    await tester.enterText(find.byType(TextField).first, 'acne');
+    await tester.pump();
+
+    expect(find.text('acne'), findsWidgets);
+    expect(find.text('eczema'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('settings content supports Kurdish Sorani RTL', (tester) async {
@@ -290,6 +465,11 @@ void main() {
     expect(restored.notificationsEnabled, isTrue);
     expect(reminderService.enableCalls, 1);
   });
+}
+
+void _setViewport(WidgetTester tester, Size size) {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size;
 }
 
 Future<void> _noopLogout() async {}

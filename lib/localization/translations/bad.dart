@@ -31,6 +31,8 @@ const translationsBad = <String, Map<String, String>>{
     'emailHint': 'you@example.com',
     'password': 'پەیڤا تێپەڕبوونێ',
     'passwordHint': 'کێمترین 8 پیت',
+    'showPassword': 'نیشاندانا پەیڤا تێپەڕبوونێ',
+    'hidePassword': 'ڤەشارتییا پەیڤا تێپەڕبوونێ',
     'confirm': 'پشتڕاستکرنا پەیڤا تێپەڕبوونێ',
     'confirmHint': 'پەیڤا تێپەڕبوونێ دووبارە بنڤیسە',
     'terms': 'من رازیم ب مەرجان و سیاسەتا تایبەتمەندیێ.',
@@ -190,10 +192,14 @@ const translationsBad = <String, Map<String, String>>{
     'aiAnalysis': 'شیکاریا پێستی یا AI',
     'aiAnalysisDesc':
         'وێنەیەکێ پێستی هەلبژێرە بۆ ئامادەکرنێ بۆ شیکاریا هاریکاریا AI.',
+    'skinChatDescription':
+        'دەربارەی پێست و ڕۆتینا چاڤدێریا خو بگەڤە لەگەل SkinAI.',
     'scanSkin': 'پێستێ خۆ سکان بکە',
     'workspace': 'جهێ کارکرنێ',
     'history': 'مێژووا سکانێ',
     'historyShort': 'ئەنجامێن بەری نوکە',
+    'recentScans': 'سکانێن دوماهیێ',
+    'viewDetails': 'دیتنا هەمی وردەکاریان',
     'profile': 'پڕۆفایلێ من',
     'profileShort': 'ڕێکخستنێن هەژمارێ',
     'disclaimer':
@@ -458,6 +464,7 @@ const translationsBad = <String, Map<String, String>>{
     'emptyNotifications': 'هەموو تشت نوێنە. ئاگەهدارکرنێن نوو ل ڤێرێ دیار دبن.',
     'more': 'پتر',
     'cancel': 'پاشگەزبەبوون',
+    'done': 'تەواو',
     'masterNotifications': 'رێگەدان ب ئاگەهدارکرنێ',
     'permissionExplanation':
         'SkinAI ئاگەهدارکرنێن ناڤخۆ بۆ بیرهاتنێن رێکخراو بکاردینەت. ئامێرێ تە دبە مۆڵەتێ داخواز بکەت.',

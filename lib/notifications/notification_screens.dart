@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+
+import '../design/app_design_system.dart';
 import '../localization/app_localizations.dart';
 import '../local_reminder_service.dart';
 import '../routines/routine_controller.dart';
@@ -86,6 +89,73 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           groups.putIfAbsent(_dateGroup(context, item.createdAt), () => []);
           groups[_dateGroup(context, item.createdAt)]!.add(item);
         }
+        final isExpanded = AppBreakpoints.of(context) == AppViewport.expanded;
+        final searchField = Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search_rounded),
+              hintText: _t('searchNotifications'),
+              suffixIcon: _searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: _t('clearSearch'),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {});
+                      },
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              isDense: true,
+            ),
+          ),
+        );
+        final categoryField = Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 8),
+          child: DropdownButtonFormField<String>(
+            initialValue: _categoryFilter,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: _t('category'),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              isDense: true,
+            ),
+            items: [
+              for (final category in const [
+                'all',
+                'reminder',
+                'routine',
+                'scan',
+                'update',
+                'message',
+                'appointment',
+                'subscription',
+                'security',
+                'other',
+              ])
+                DropdownMenuItem(
+                  value: category,
+                  child: Text(
+                    category == 'all'
+                        ? _t('allCategories')
+                        : category == 'other'
+                            ? _t('otherCategory')
+                            : _t(category),
+                  ),
+                ),
+            ],
+            onChanged: (value) => setState(
+              () => _categoryFilter = value ?? 'all',
+            ),
+          ),
+        );
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
@@ -132,7 +202,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               ),
             ],
           ),
-          body: Column(
+          body: LayoutBuilder(
+            builder: (context, constraints) => Center(
+              child: SizedBox(
+                key: const ValueKey('notification-center-content'),
+                width: AppBreakpoints.contentWidth(constraints.maxWidth),
+                child: Column(
             children: [
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -145,82 +220,38 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                       'read',
                       'important',
                     ])
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 8),
+                            SizedBox(
+                              height: 48,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsetsDirectional.only(end: 8),
+                                child: Center(
                         child: ChoiceChip(
                           label: Text(_t(filter)),
                           selected: _filter == filter,
-                          onSelected: (_) => setState(() => _filter = filter),
+                                    onSelected: (_) =>
+                                        setState(() => _filter = filter),
+                    ),
+                  ),
                         ),
                       ),
                   ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    hintText: _t('searchNotifications'),
-                    suffixIcon: _searchController.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: _t('clearSearch'),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close_rounded),
-                          ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    isDense: true,
                   ),
                 ),
+                    if (isExpanded)
+                      Row(
+                        children: [
+                          Expanded(child: searchField),
+                          SizedBox(
+                            width: 300,
+                            child: categoryField,
               ),
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 8),
-                child: DropdownButtonFormField<String>(
-                  initialValue: _categoryFilter,
-                  decoration: InputDecoration(
-                    labelText: _t('category'),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    isDense: true,
-                  ),
-                  items: [
-                    for (final category in const [
-                      'all',
-                      'reminder',
-                      'routine',
-                      'scan',
-                      'update',
-                      'message',
-                      'appointment',
-                      'subscription',
-                      'security',
-                      'other',
-                    ])
-                      DropdownMenuItem(
-                        value: category,
-                        child: Text(
-                          category == 'all'
-                              ? _t('allCategories')
-                              : category == 'other'
-                                  ? _t('otherCategory')
-                                  : _t(category),
-                        ),
-                      ),
-                  ],
-                  onChanged: (value) => setState(
-                    () => _categoryFilter = value ?? 'all',
-                  ),
-                ),
-              ),
+                        ],
+                      )
+                    else ...[
+                      searchField,
+                      categoryField,
+                    ],
               Expanded(
                 child: items.isEmpty
                     ? _emptyState(
@@ -235,7 +266,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                         children: [
                           for (final entry in groups.entries) ...[
                             Padding(
-                              padding: const EdgeInsetsDirectional.fromSTEB(
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
                                 4,
                                 10,
                                 4,
@@ -243,9 +275,11 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                               ),
                               child: Text(
                                 entry.key,
-                                style: theme.textTheme.titleSmall?.copyWith(
+                                      style:
+                                          theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  color: theme.colorScheme.onSurfaceVariant,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -256,6 +290,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                       ),
               ),
             ],
+          ),
+              ),
+            ),
           ),
         );
       },
@@ -556,7 +593,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   Future<void> _confirmClear() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog.adaptive(
         title: Text(_t('clearAll')),
         content: Text(_t('clearConfirm')),
         actions: [
@@ -688,7 +725,11 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         animation: controller,
         builder: (context, _) {
           final settings = controller.notificationSettings;
-          return ListView(
+          return Center(
+            child: ConstrainedBox(
+              key: const ValueKey('notification-settings-content'),
+              constraints: const BoxConstraints(maxWidth: 960),
+              child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
             children: [
               Card(
@@ -700,8 +741,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       value: settings.masterEnabled &&
                           controller.supportsNotifications &&
                           (_permissionGranted ?? true),
-                      onChanged:
-                          controller.supportsNotifications ? _setMaster : null,
+                          onChanged: controller.supportsNotifications
+                              ? _setMaster
+                              : null,
                     ),
                     if (_permissionGranted != null)
                       Padding(
@@ -717,8 +759,10 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                               : _permissionGranted!
                                   ? 'permissionStatusGranted'
                                   : 'permissionStatusDenied'),
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     color: _permissionGranted == true &&
                                             controller.supportsNotifications
                                         ? scheme.primary
@@ -731,18 +775,18 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     _switch(
                         'dailyEnabled',
                         settings.dailyEnabled,
-                        (value) =>
-                            _update(settings.copyWith(dailyEnabled: value))),
+                            (value) => _update(
+                                settings.copyWith(dailyEnabled: value))),
                     _switch(
                         'morningEnabled',
                         settings.morningEnabled,
-                        (value) =>
-                            _update(settings.copyWith(morningEnabled: value))),
+                            (value) => _update(
+                                settings.copyWith(morningEnabled: value))),
                     _switch(
                         'eveningEnabled',
                         settings.eveningEnabled,
-                        (value) =>
-                            _update(settings.copyWith(eveningEnabled: value))),
+                            (value) => _update(
+                                settings.copyWith(eveningEnabled: value))),
                     _switch(
                         'sunscreenEnabled',
                         settings.sunscreenEnabled,
@@ -756,13 +800,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     _switch(
                         'aiScanEnabled',
                         settings.aiScanEnabled,
-                        (value) =>
-                            _update(settings.copyWith(aiScanEnabled: value))),
+                            (value) => _update(
+                                settings.copyWith(aiScanEnabled: value))),
                     _switch(
                         'weeklySummaryEnabled',
                         settings.weeklySummaryEnabled,
-                        (value) => _update(
-                            settings.copyWith(weeklySummaryEnabled: value))),
+                            (value) => _update(settings.copyWith(
+                                weeklySummaryEnabled: value))),
                     const Divider(height: 1),
                     _sectionTitle(_t('activityNotifications')),
                     _switch(
@@ -776,7 +820,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       'appointmentRemindersEnabled',
                       settings.appointmentRemindersEnabled,
                       (value) => _update(
-                        settings.copyWith(appointmentRemindersEnabled: value),
+                            settings.copyWith(
+                                appointmentRemindersEnabled: value),
                       ),
                     ),
                     _switch(
@@ -810,8 +855,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     _switch(
                         'soundEnabled',
                         settings.soundEnabled,
-                        (value) =>
-                            _update(settings.copyWith(soundEnabled: value))),
+                            (value) => _update(
+                                settings.copyWith(soundEnabled: value))),
                     _switch(
                         'vibrationEnabled',
                         settings.vibrationEnabled,
@@ -820,8 +865,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     _switch(
                         'privatePreview',
                         settings.privatePreview,
-                        (value) =>
-                            _update(settings.copyWith(privatePreview: value))),
+                            (value) => _update(
+                                settings.copyWith(privatePreview: value))),
                     Padding(
                       padding: const EdgeInsetsDirectional.fromSTEB(
                         16,
@@ -831,7 +876,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       ),
                       child: Text(
                         _t('privatePreviewDescription'),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,
                             ),
                       ),
@@ -852,8 +898,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       _timeRow(
                         _t('quietEnd'),
                         settings.quietEndMinutes,
-                        (value) =>
-                            _update(settings.copyWith(quietEndMinutes: value)),
+                            (value) => _update(
+                                settings.copyWith(quietEndMinutes: value)),
                       ),
                       Padding(
                         padding: const EdgeInsetsDirectional.fromSTEB(
@@ -889,6 +935,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     ),
               ),
             ],
+              ),
+            ),
           );
         },
       ),
@@ -927,20 +975,67 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         trailing: Text(
           TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60).format(context),
         ),
-        onTap: () async {
+        onTap: () => _pickTime(minutes, onChanged),
+      );
+
+  Future<void> _pickTime(
+    int minutes,
+    ValueChanged<int> onChanged,
+  ) async {
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      var selectedMinutes = minutes;
+      final result = await showCupertinoModalPopup<int>(
+        context: context,
+        builder: (context) => SafeArea(
+          top: false,
+          child: Container(
+            height: 260,
+            color: Theme.of(context).colorScheme.surface,
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    CupertinoButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(_t('cancel')),
+                    ),
+                    CupertinoButton(
+                      onPressed: () => Navigator.pop(context, selectedMinutes),
+                      child: Text(_t('done')),
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: CupertinoTimerPicker(
+                    mode: CupertinoTimerPickerMode.hm,
+                    initialTimerDuration: Duration(minutes: minutes),
+                    onTimerDurationChanged: (duration) {
+                      selectedMinutes = duration.inMinutes % (24 * 60);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (result != null) onChanged(result);
+      return;
+    }
+
           final time = await showTimePicker(
             context: context,
             initialTime: TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60),
           );
           if (time != null) onChanged(time.hour * 60 + time.minute);
-        },
-      );
+  }
 
   Future<void> _setMaster(bool enabled) async {
     if (enabled) {
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (context) => AlertDialog.adaptive(
           title: Text(_t('masterNotifications')),
           content: Text(_t('permissionExplanation')),
           actions: [

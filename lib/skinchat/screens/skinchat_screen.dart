@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:skin_ai/design/app_design_system.dart';
 import 'package:skin_ai/skinchat/models/skinchat_models.dart';
 import 'package:skin_ai/skinchat/services/skinchat_api_service.dart';
 
@@ -154,11 +156,13 @@ class SkinChatScreen extends StatefulWidget {
   const SkinChatScreen({
     required this.baseUrl,
     required this.languageCode,
+    this.api,
     super.key,
   });
 
   final String baseUrl;
   final String languageCode;
+  final SkinChatApiService? api;
 
   @override
   State<SkinChatScreen> createState() => _SkinChatScreenState();
@@ -192,7 +196,8 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   @override
   void initState() {
     super.initState();
-    _api = SkinChatApiService(
+    _api = widget.api ??
+        SkinChatApiService(
       baseUrl: widget.baseUrl,
       idTokenProvider: () async =>
           await FirebaseAuth.instance.currentUser?.getIdToken(),
@@ -673,6 +678,11 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         ),
         body: SafeArea(
           top: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) => Center(
+              child: SizedBox(
+                key: const ValueKey('skinchat-content'),
+                width: AppBreakpoints.contentWidth(constraints.maxWidth),
           child: Column(
             children: [
               if (_uploading)
@@ -691,7 +701,8 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                     ),
                   ],
                 ),
-              if (_conversation != null) _imageContextCard(panel, accent, dark),
+                    if (_conversation != null)
+                      _imageContextCard(panel, accent, dark),
               if (_conversation == null && !_loading)
                 _welcomeCard(panel, accent),
               if (_loading)
@@ -708,18 +719,21 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                       ? _emptyChat(panel, dark)
                       : _messageList(panel, accent, dark),
                 ),
-              if (_conversation?.hasImageReference == true && _messages.isEmpty)
+                    if (_conversation?.hasImageReference == true &&
+                        _messages.isEmpty)
                 _suggestions(panel),
               if (_sending || _messageFailed)
                 Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 6),
+                        padding:
+                            const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 6),
                   child: Row(
                     children: [
                       if (_sending)
                         const SizedBox(
                           width: 15,
                           height: 15,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                         ),
                       if (_sending) const SizedBox(width: 8),
                       Expanded(
@@ -731,7 +745,8 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                       if (_messageFailed)
                         TextButton.icon(
                           onPressed: _retryMessage,
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                                icon:
+                                    const Icon(Icons.refresh_rounded, size: 18),
                           label: Text(t('retry')),
                         ),
                     ],
@@ -740,6 +755,9 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
               _disclaimer(panel, dark),
               _inputBar(panel, accent),
             ],
+          ),
+        ),
+      ),
           ),
         ),
       ),
@@ -909,7 +927,10 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
           final messageIndex = index - (_nextBefore == null ? 0 : 1);
           final message = _messages[messageIndex];
           final isUser = message.role == 'user';
+          final messageColor =
+              isUser ? Colors.white : Theme.of(context).colorScheme.onSurface;
           return Align(
+            key: ValueKey('skinchat-message-${message.id}'),
             alignment: isUser
                 ? AlignmentDirectional.centerEnd
                 : AlignmentDirectional.centerStart,
@@ -917,15 +938,22 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
               onLongPress: () => _deleteMessage(message),
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * .84,
+                  maxWidth: AppBreakpoints.fromWidth(
+                            MediaQuery.sizeOf(context).width,
+                          ) ==
+                          AppViewport.expanded
+                      ? 760
+                      : MediaQuery.sizeOf(context).width * .84,
                 ),
                 margin: const EdgeInsets.symmetric(vertical: 5),
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
                 decoration: BoxDecoration(
                   color: isUser ? const Color(0xFF1469E8) : panel,
-                  borderRadius: BorderRadius.circular(18).copyWith(
-                    bottomRight: isUser ? const Radius.circular(5) : null,
-                    bottomLeft: isUser ? null : const Radius.circular(5),
+                  borderRadius: BorderRadiusDirectional.only(
+                    topStart: const Radius.circular(18),
+                    topEnd: const Radius.circular(18),
+                    bottomStart: Radius.circular(isUser ? 18 : 5),
+                    bottomEnd: Radius.circular(isUser ? 5 : 18),
                   ),
                   border: isUser
                       ? null
@@ -939,13 +967,40 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                     Directionality(
                       textDirection:
                           _messageDirection(message.language, message.content),
-                      child: SelectableText(
-                        message.content,
-                        style: TextStyle(
-                          color: isUser
-                              ? Colors.white
-                              : Theme.of(context).colorScheme.onSurface,
-                          height: 1.45,
+                      child: MarkdownBody(
+                        data: message.content,
+                        selectable: true,
+                        imageBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(color: messageColor, height: 1.45),
+                          h1: TextStyle(
+                            color: messageColor,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          h2: TextStyle(
+                            color: messageColor,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          h3: TextStyle(
+                            color: messageColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          strong: TextStyle(
+                            color: messageColor,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          em: TextStyle(
+                            color: messageColor,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          listBullet: TextStyle(color: messageColor),
+                          code: TextStyle(
+                            color: messageColor,
+                            backgroundColor: isUser ? Colors.white24 : panel,
+                          ),
                         ),
                       ),
                     ),
