@@ -47,6 +47,7 @@ flutter:
     - assets/icon/logo.png
     - gemini_generated_video_a4162dd9.mp4
 
+
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true

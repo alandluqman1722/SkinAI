@@ -28,6 +28,7 @@ import 'package:skin_ai/routines/routine_controller.dart';
 import 'package:skin_ai/routines/routine_models.dart';
 import 'package:skin_ai/routines/routine_screens.dart';
 import 'package:skin_ai/notifications/notification_screens.dart';
+import 'package:skin_ai/skinchat/models/skinchat_models.dart';
 import 'package:skin_ai/skinchat/screens/skinchat_screen.dart';
 import 'package:video_player/video_player.dart';
 import 'package:skin_ai/localization/app_localizations.dart';
@@ -415,8 +416,12 @@ class Pal {
   }
 }
 
-ThemeData buildTheme(Brightness b, {Color? accentColor}) {
-  return AppTheme.build(b, accentColor: accentColor);
+ThemeData buildTheme(
+  Brightness b, {
+  Color? accentColor,
+  Locale? locale,
+}) {
+  return AppTheme.build(b, accentColor: accentColor, locale: locale);
 }
 
 // -------------------- App state: language + theme --------------------
@@ -1183,6 +1188,15 @@ class AppController extends ChangeNotifier {
   List<int> pendingAnswers = List<int>.filled(quiz.length, -1);
   final List<ScanRecord> _localScans = [];
   List<ScanRecord> _remoteScans = [];
+  SkinChatScanContext? _latestSkinChatScan;
+  Uint8List? _latestSkinChatImage;
+  String? _latestSkinChatOwnerUid;
+  SkinChatScanContext? get latestSkinChatScan =>
+      _latestSkinChatOwnerUid == currentUser?.uid
+          ? _latestSkinChatScan
+          : null;
+  Uint8List? latestSkinChatImageFor(SkinChatScanContext scan) =>
+      latestSkinChatScan?.scanId == scan.scanId ? _latestSkinChatImage : null;
   List<ScanRecord> get scans {
     final remoteIds =
         _remoteScans.map((scan) => scan.analysisId).whereType<String>().toSet();
@@ -1365,6 +1379,36 @@ class AppController extends ChangeNotifier {
       ..clear()
       ..addAll(updated);
     notifyListeners();
+  }
+
+  void rememberLatestSkinChatScan(
+    SkinChatScanContext scan, {
+    required Uint8List imageBytes,
+  }) {
+    _latestSkinChatScan = scan;
+    _latestSkinChatImage = imageBytes;
+    _latestSkinChatOwnerUid = currentUser?.uid;
+    notifyListeners();
+  }
+
+  Future<SkinChatScanContext?> loadLatestSkinChatScan() async {
+    if (latestSkinChatScan != null) return latestSkinChatScan;
+    if (currentUser != null) {
+      await refreshAccountScans();
+    }
+    final scan = scans
+        .where((item) => item.analysisId?.isNotEmpty == true)
+        .firstOrNull;
+    if (scan == null) return null;
+    return SkinChatScanContext(
+      scanId: scan.analysisId!,
+      detectedCondition: scan.cls,
+      confidence: scan.conf,
+      scanDate: DateTime.fromMillisecondsSinceEpoch(scan.ts),
+      summary: scan.summary,
+      bodyLocation: scan.bodyLocation ?? scan.bodySubregion,
+      hasOriginalImage: scan.hasOriginalImage,
+    );
   }
 
   Future<bool> addAccountScan(ScanRecord record) async {
@@ -1550,6 +1594,9 @@ class AppController extends ChangeNotifier {
   Future<void> clearScans() async {
     await _saveScans(const []);
     _localScans.clear();
+    _latestSkinChatScan = null;
+    _latestSkinChatImage = null;
+    _latestSkinChatOwnerUid = null;
     notifyListeners();
   }
 
@@ -1572,6 +1619,11 @@ class AppController extends ChangeNotifier {
     _localScans
       ..clear()
       ..addAll(updated);
+    if (_latestSkinChatScan?.scanId == scanId) {
+      _latestSkinChatScan = null;
+      _latestSkinChatImage = null;
+      _latestSkinChatOwnerUid = null;
+    }
     notifyListeners();
   }
 
@@ -1864,6 +1916,12 @@ class AppController extends ChangeNotifier {
     AuthUserInfo user,
   ) async {
     final previous = currentUser;
+    if (previous?.uid != user.uid) {
+      _latestSkinChatScan = null;
+      _latestSkinChatImage = null;
+      _latestSkinChatOwnerUid = null;
+      _remoteScans = [];
+    }
     final existing =
         previous?.uid == user.uid && user.uid.isNotEmpty ? previous : null;
     currentUser = UserRecord(
@@ -1906,6 +1964,9 @@ class AppController extends ChangeNotifier {
       currentUser = null;
       _localScans.clear();
       _remoteScans = [];
+      _latestSkinChatScan = null;
+      _latestSkinChatImage = null;
+      _latestSkinChatOwnerUid = null;
       _verificationCooldownUntil = null;
       notifyListeners();
     } on FirebaseException {
@@ -2229,8 +2290,16 @@ class SkinAIApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Skin AI',
       themeMode: a.themeMode,
-      theme: buildTheme(Brightness.light, accentColor: a.accentColor),
-      darkTheme: buildTheme(Brightness.dark, accentColor: a.accentColor),
+      theme: buildTheme(
+        Brightness.light,
+        accentColor: a.accentColor,
+        locale: a.lang.locale,
+      ),
+      darkTheme: buildTheme(
+        Brightness.dark,
+        accentColor: a.accentColor,
+        locale: a.lang.locale,
+      ),
       locale: a.lang.locale,
       supportedLocales: LocaleHelper.supportedLocales,
       localizationsDelegates: const [
@@ -4502,6 +4571,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
       );
       String? persistenceError;
+      var originalImageStored = false;
       final record = ScanRecord(
         cls: r.cls,
         conf: r.confidence,
@@ -4570,6 +4640,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (!imageUploaded && persistenceError == null) {
             persistenceError = a.t('historySaveFailed');
           }
+          originalImageStored = imageUploaded;
         }
       } else if (a.retainHistory) {
         try {
@@ -4579,6 +4650,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
       if (!mounted) return;
+      a.rememberLatestSkinChatScan(
+        SkinChatScanContext(
+          scanId: r.scanId,
+          detectedCondition: r.cls,
+          confidence: r.confidence,
+          scanDate: r.timestamp,
+          summary: r.summary,
+          bodyLocation: record.bodyLocation ?? record.bodySubregion,
+          hasOriginalImage: originalImageStored,
+        ),
+        imageBytes: bytes,
+      );
       setState(() {
         analyzing = false;
         _uploadingImage = false;
@@ -5231,20 +5314,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Future<void> _openSkinChat(
+    AppController a, {
+    SkinChatScanContext? scanContext,
+    Uint8List? scanImageBytes,
+  }) async {
+    var attachedScan = scanContext ?? a.latestSkinChatScan;
+    if (attachedScan == null) {
+      try {
+        attachedScan = await a.loadLatestSkinChatScan();
+      } on Exception {
+        if (mounted) showNotice(context, a.t('errConnect'));
+      }
+    }
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SkinChatScreen(
+          baseUrl: a.serverUrl,
+          languageCode: a.lang.locale.languageCode,
+          scanContext: attachedScan,
+          scanImageBytes: scanImageBytes ??
+              (attachedScan == null
+                  ? null
+                  : a.latestSkinChatImageFor(attachedScan)),
+        ),
+      ),
+    );
+  }
+
   Widget _homeChatCard(AppController a) {
     return Material(
           color: Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.extraLarge),
           child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.extraLarge),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => SkinChatScreen(
-                  baseUrl: a.defaultServer,
-                  languageCode: a.lang.locale.languageCode,
-                ),
-              ),
-            ),
+            onTap: () => _openSkinChat(a),
             child: Ink(
           padding: const EdgeInsets.all(AppSpacing.x4),
               decoration: BoxDecoration(
@@ -6371,6 +6476,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _resultCard(AppController a, Pal p, ScanResult r) {
+    final scanContext = a.latestSkinChatScan;
     return Container(
       margin: const EdgeInsets.only(top: 22),
       padding: const EdgeInsets.all(18),
@@ -6447,6 +6553,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
               label: Text(
                 exportingReport ? a.t('reportGenerating') : a.t('exportReport'),
               ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.x2),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: scanContext == null
+                  ? null
+                  : () => _openSkinChat(
+                        a,
+                        scanContext: scanContext,
+                        scanImageBytes:
+                            a.latestSkinChatImageFor(scanContext),
+                      ),
+              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              label: const Text('SkinChat AI'),
             ),
           ),
         ],

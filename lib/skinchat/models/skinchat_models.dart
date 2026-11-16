@@ -1,3 +1,67 @@
+class SkinChatScanContext {
+  const SkinChatScanContext({
+    required this.scanId,
+    required this.detectedCondition,
+    required this.confidence,
+    required this.scanDate,
+    this.summary,
+    this.bodyLocation,
+    this.hasOriginalImage = false,
+  });
+
+  final String scanId;
+  final String detectedCondition;
+  final double confidence;
+  final DateTime scanDate;
+  final String? summary;
+  final String? bodyLocation;
+  final bool hasOriginalImage;
+
+  Map<String, Object?> toJson() => {
+        'scan_id': scanId,
+        'detected_condition': detectedCondition,
+        'confidence': confidence,
+        'scan_date': scanDate.toUtc().toIso8601String(),
+        if (summary != null) 'summary': summary,
+        if (bodyLocation != null) 'body_location': bodyLocation,
+        'has_original_image': hasOriginalImage,
+      };
+
+  factory SkinChatScanContext.fromJson(Map<String, dynamic> json) {
+    final scanId = json['scan_id'];
+    final condition = json['detected_condition'];
+    final confidence = json['confidence'];
+    final scanDate = DateTime.tryParse(json['scan_date']?.toString() ?? '');
+    final summary = json['summary'];
+    final bodyLocation = json['body_location'];
+    final hasOriginalImage = json['has_original_image'];
+    if (scanId is! String ||
+        scanId.isEmpty ||
+        condition is! String ||
+        condition.isEmpty ||
+        confidence is! num ||
+        !confidence.isFinite ||
+        confidence < 0 ||
+        confidence > 100 ||
+        scanDate == null ||
+        (summary != null && summary is! String) ||
+        (bodyLocation != null && bodyLocation is! String) ||
+        (hasOriginalImage != null && hasOriginalImage is! bool)) {
+      throw const FormatException('Invalid SkinChat scan context.');
+    }
+
+    return SkinChatScanContext(
+      scanId: scanId,
+      detectedCondition: condition,
+      confidence: confidence.toDouble(),
+      scanDate: scanDate,
+      summary: summary as String?,
+      bodyLocation: bodyLocation as String?,
+      hasOriginalImage: hasOriginalImage == true,
+    );
+  }
+}
+
 class SkinChatConversation {
   const SkinChatConversation({
     required this.id,
@@ -8,6 +72,7 @@ class SkinChatConversation {
     this.initialAnalysis,
     this.detectedLanguage = 'en',
     this.imageAvailable = true,
+    this.scanContext,
   });
 
   final String id;
@@ -18,6 +83,7 @@ class SkinChatConversation {
   final String? initialAnalysis;
   final String detectedLanguage;
   final bool imageAvailable;
+  final SkinChatScanContext? scanContext;
 
   bool get hasImage => uploadedImageId != null && imageAvailable;
   bool get hasImageReference => uploadedImageId != null;
@@ -38,6 +104,11 @@ class SkinChatConversation {
       detectedLanguage: json['detected_language'] as String? ?? 'en',
       imageAvailable: json['image_available'] as bool? ??
           (json['uploaded_image_id'] != null),
+      scanContext: json['scan_context'] == null
+          ? null
+          : SkinChatScanContext.fromJson(
+              Map<String, dynamic>.from(json['scan_context'] as Map),
+            ),
     );
   }
 
@@ -48,6 +119,7 @@ class SkinChatConversation {
     String? detectedLanguage,
     DateTime? updatedAt,
     bool? imageAvailable,
+    SkinChatScanContext? scanContext,
   }) =>
       SkinChatConversation(
         id: id,
@@ -58,6 +130,7 @@ class SkinChatConversation {
         initialAnalysis: initialAnalysis ?? this.initialAnalysis,
         detectedLanguage: detectedLanguage ?? this.detectedLanguage,
         imageAvailable: imageAvailable ?? this.imageAvailable,
+        scanContext: scanContext ?? this.scanContext,
       );
 }
 

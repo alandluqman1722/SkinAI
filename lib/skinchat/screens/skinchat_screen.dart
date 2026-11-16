@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:skin_ai/design/app_design_system.dart';
+import 'package:skin_ai/medical_scan_api.dart';
 import 'package:skin_ai/skinchat/models/skinchat_models.dart';
 import 'package:skin_ai/skinchat/services/skinchat_api_service.dart';
 
@@ -27,11 +29,23 @@ const Map<String, Map<String, String>> _copy = {
     'deleteMessageConfirm': 'Delete this message and its paired reply?',
     'emptyHistory': 'No conversations yet.',
     'emptyChat': 'Your conversation will appear here.',
+    'generalMode': 'Ask a general skin-health question. No scan is attached.',
+    'scanAttached': 'Attached scan (screening result)',
+    'scanId': 'Scan ID',
+    'condition': 'Detected result',
+    'confidence': 'Model confidence',
+    'scanDate': 'Scan date',
+    'bodyLocation': 'Body area',
+    'screeningDisclaimer':
+        'This is an AI screening prediction, not a diagnosis.',
+    'scanImageUnavailable': 'The original scan image is not available.',
     'placeholder': 'Ask a skincare question…',
     'send': 'Send message',
     'sending': 'SkinChat is responding…',
     'older': 'Load older messages',
     'retry': 'Try again',
+    'sendFailed':
+        'Could not send this message. Check your connection and retry.',
     'requestTimeout':
         'The reply is taking longer than expected. Retry to check for a saved reply.',
     'disclaimer':
@@ -43,6 +57,8 @@ const Map<String, Map<String, String>> _copy = {
     'uploaded': 'Image saved securely',
     'imageUnavailable':
         'The stored image is unavailable. Text chat can continue; start a new conversation to upload another.',
+    'loadFailed': 'Could not load this conversation. Please retry.',
+    'imagePickerFailed': 'Could not open the image picker. Please retry.',
   },
   'ku': {
     'title': 'SkinChat AI',
@@ -63,6 +79,16 @@ const Map<String, Map<String, String>> _copy = {
     'deleteMessageConfirm': 'ئەم نامەیە و وەڵامەکەی بسڕێتەوە؟',
     'emptyHistory': 'هێشتا هیچ گفتوگۆیەک نییە.',
     'emptyChat': 'گفتوگۆکەت لێرە دەردەکەوێت.',
+    'generalMode':
+        'دەتوانیت پرسیاری گشتیی تەندروستی پێست بکەیت. هیچ سکانێک پەیوەست نییە.',
+    'scanAttached': 'سکانی پەیوەستکراو (ئەنجامی پشکنین)',
+    'scanId': 'ژمارەی سکان',
+    'condition': 'ئەنجامی دۆزراوە',
+    'confidence': 'متمانەی مۆدێل',
+    'scanDate': 'بەرواری سکان',
+    'bodyLocation': 'شوێنی لەش',
+    'screeningDisclaimer': 'ئەمە پێشبینیی پشکنینی AI ـە، نەک تشخیص.',
+    'scanImageUnavailable': 'وێنەی ڕەسەنی سکان بەردەست نییە.',
     'placeholder': 'پرسیارێکی لەبارەی چاودێری پێست بکە…',
     'send': 'ناردنی پرسیار',
     'sending': 'SkinChat وەڵام دەداتەوە…',
@@ -78,6 +104,10 @@ const Map<String, Map<String, String>> _copy = {
     'uploaded': 'وێنە بە پارێزراوی هەڵگیرا',
     'imageUnavailable':
         'وێنەی هەڵگیراو بەردەست نییە. دەتوانیت بە چات بەردەوام بیت یان گفتوگۆیەکی نوێ دەستپێبکەیت.',
+    'loadFailed':
+        'بارکردنی ئەم گفتوگۆیە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵبدەوە.',
+    'imagePickerFailed':
+        'کردنەوەی هەڵبژێری وێنە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵبدەوە.',
   },
   'bad': {
     'title': 'SkinChat AI',
@@ -98,11 +128,23 @@ const Map<String, Map<String, String>> _copy = {
     'deleteMessageConfirm': 'ئەرێ ئەڤ نامە و بەرسڤا وێ ژێببەم؟',
     'emptyHistory': 'هێشتا چ گفتوگۆ نینە.',
     'emptyChat': 'گفتوگۆیا تە ل ڤێرێ دیار دبیت.',
+    'generalMode':
+        'دکاریت پرسیارێن گشتی دەر بارێ تەندروستیا پێستی بکەی. چ سکانەک نەهاتیە پەیوەستکرن.',
+    'scanAttached': 'سکانێ پەیوەستکری (ئەنجامێ پشکنینێ)',
+    'scanId': 'ژمارا سکانێ',
+    'condition': 'ئەنجامێ هاتیە دیتن',
+    'confidence': 'باوەریا مۆدێلێ',
+    'scanDate': 'بەروارێ سکانێ',
+    'bodyLocation': 'شوێنێ لەشی',
+    'screeningDisclaimer': 'ئەڤە پێشبینیا پشکنینا AI یە، نە تشخیص.',
+    'scanImageUnavailable': 'وێنەیا ڕەسەنی یا سکانێ بەردەست نینە.',
     'placeholder': 'پرسیارەکا دەر بارێ چاڤدێریا پێستی بکە…',
     'send': 'پرسیارێ بفرێکە',
     'sending': 'SkinChat بەرسڤ ددەت…',
     'older': 'نامەیێن کەڤن بارکە',
     'retry': 'دووبارە هەول بدە',
+    'sendFailed':
+        'ناردنی ئەم نامەیە سەرکەوتوو نەبوو. پەیوەندی ئینتەرنێت بپشکنە و دووبارە هەوڵ بدە.',
     'requestTimeout':
         'بەرسڤ د دیرکەفتییە. ژ نوو هەول بدە بۆ پشکنینا بەرسڤەکا هاتیە پاشەکەفتکرن.',
     'disclaimer': 'تەنێ زانیاریا گشتییە؛ نە تشخیصە و نە جێگرەوەیا دکتۆرێ پێست.',
@@ -113,6 +155,9 @@ const Map<String, Map<String, String>> _copy = {
     'uploaded': 'وێنە ب پاراستی هاتە هەڵگرتن',
     'imageUnavailable':
         'وێنەیا هەڵگیرا بەردەست نینە. دکارێ ب چاتێ بەردەوام بیت یان گفتوگۆیەکا نوی دەستپێبکەی.',
+    'loadFailed': 'بارکرنا ئەڤ گفتوگۆیێ سەرکەفتی نەبوو. ژ نوو هەول بدە.',
+    'imagePickerFailed':
+        'ڤەکرنا هەلبژێرێ وێنەیێ سەرکەفتی نەبوو. ژ نوو هەول بدە.',
   },
   'ar': {
     'title': 'SkinChat AI',
@@ -133,11 +178,21 @@ const Map<String, Map<String, String>> _copy = {
     'deleteMessageConfirm': 'هل تريد حذف هذه الرسالة والرد المرتبط بها؟',
     'emptyHistory': 'لا توجد محادثات بعد.',
     'emptyChat': 'ستظهر محادثتك هنا.',
+    'generalMode': 'يمكنك طرح سؤال عام عن صحة البشرة. لا يوجد فحص مرفق.',
+    'scanAttached': 'الفحص المرفق (نتيجة أولية)',
+    'scanId': 'معرّف الفحص',
+    'condition': 'النتيجة المكتشفة',
+    'confidence': 'ثقة النموذج',
+    'scanDate': 'تاريخ الفحص',
+    'bodyLocation': 'منطقة الجسم',
+    'screeningDisclaimer': 'هذا تنبؤ فحص بالذكاء الاصطناعي، وليس تشخيصًا.',
+    'scanImageUnavailable': 'الصورة الأصلية للفحص غير متاحة.',
     'placeholder': 'اسأل عن العناية بالبشرة…',
     'send': 'إرسال الرسالة',
     'sending': 'SkinChat يكتب…',
     'older': 'تحميل الرسائل الأقدم',
     'retry': 'حاول مرة أخرى',
+    'sendFailed': 'تعذّر إرسال هذه الرسالة. تحقق من الاتصال وحاول مجددًا.',
     'requestTimeout':
         'تأخر الرد أكثر من المتوقع. أعد المحاولة للتحقق من وجود رد محفوظ.',
     'disclaimer':
@@ -149,6 +204,8 @@ const Map<String, Map<String, String>> _copy = {
     'uploaded': 'تم حفظ الصورة بأمان',
     'imageUnavailable':
         'الصورة المحفوظة لم تعد متاحة. يمكنك متابعة المحادثة النصية أو بدء محادثة جديدة لرفع صورة أخرى.',
+    'loadFailed': 'تعذّر تحميل هذه المحادثة. يرجى المحاولة مرة أخرى.',
+    'imagePickerFailed': 'تعذّر فتح منتقي الصور. يرجى المحاولة مرة أخرى.',
   },
 };
 
@@ -157,12 +214,16 @@ class SkinChatScreen extends StatefulWidget {
     required this.baseUrl,
     required this.languageCode,
     this.api,
+    this.scanContext,
+    this.scanImageBytes,
     super.key,
   });
 
   final String baseUrl;
   final String languageCode;
   final SkinChatApiService? api;
+  final SkinChatScanContext? scanContext;
+  final Uint8List? scanImageBytes;
 
   @override
   State<SkinChatScreen> createState() => _SkinChatScreenState();
@@ -177,6 +238,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   List<SkinChatMessage> _messages = [];
   SkinChatConversation? _conversation;
   Uint8List? _imageBytes;
+  Uint8List? _scanImageBytes;
   String? _nextBefore;
   bool _loading = true;
   bool _uploading = false;
@@ -192,16 +254,18 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   String t(String key) => _copy[_language]![key]!;
 
   bool get _rtl => _language != 'en';
+  SkinChatScanContext? get _activeScanContext =>
+      _conversation == null ? widget.scanContext : _conversation!.scanContext;
 
   @override
   void initState() {
     super.initState();
     _api = widget.api ??
         SkinChatApiService(
-      baseUrl: widget.baseUrl,
-      idTokenProvider: () async =>
-          await FirebaseAuth.instance.currentUser?.getIdToken(),
-    );
+          baseUrl: widget.baseUrl,
+          idTokenProvider: () async =>
+              await FirebaseAuth.instance.currentUser?.getIdToken(),
+        );
     _restoreConversations();
   }
 
@@ -220,13 +284,33 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         _conversations = conversations;
         _loading = false;
       });
-      if (conversations.isNotEmpty) {
+      if (widget.scanContext != null) {
+        final matchingConversation = conversations
+            .where(
+              (conversation) =>
+                  conversation.scanContext?.scanId ==
+                  widget.scanContext!.scanId,
+            )
+            .firstOrNull;
+        if (matchingConversation != null) {
+          await _selectConversation(matchingConversation);
+        } else {
+          await _startConversation();
+        }
+      } else if (conversations.isNotEmpty) {
         await _selectConversation(conversations.first);
+      } else {
+        await _startConversation();
       }
     } on SkinChatApiException catch (error) {
       if (mounted) {
         setState(() => _loading = false);
         _showError(error.message);
+      }
+    } on Exception {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showError(t('loadFailed'));
       }
     }
   }
@@ -243,17 +327,36 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
       _conversation = conversation;
       _messages = [];
       _imageBytes = null;
+      _scanImageBytes = null;
       _nextBefore = null;
+      _pendingMessageId = null;
+      _pendingMessageContent = null;
+      _messageFailed = false;
+      _messageController.clear();
     });
     try {
       final page = await _api.getMessages(conversation.id);
       Uint8List? imageBytes;
+      Uint8List? scanImageBytes;
       if (conversation.hasImage) {
         try {
           imageBytes = await _api.getImage(conversation.id);
         } on SkinChatApiException catch (error) {
           if (error.statusCode != 404) rethrow;
           selectedConversation = conversation.copyWith(imageAvailable: false);
+        }
+      }
+      final scanContext = conversation.scanContext;
+      if (scanContext != null) {
+        if (widget.scanContext?.scanId == scanContext.scanId) {
+          scanImageBytes = widget.scanImageBytes;
+        }
+        try {
+          scanImageBytes ??= await _loadOriginalScanImage(scanContext);
+        } on MedicalScanApiException catch (error) {
+          if (mounted && error.statusCode != 404) _showError(error.message);
+        } on Exception {
+          if (mounted) _showError(t('scanImageUnavailable'));
         }
       }
       if (!mounted) return;
@@ -269,6 +372,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         _messages = page.messages;
         _nextBefore = page.nextBefore;
         _imageBytes = imageBytes;
+        _scanImageBytes = scanImageBytes;
         _loading = false;
       });
       _scrollToBottom();
@@ -282,27 +386,70 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
 
   Future<void> _startConversation() async {
     try {
-      final conversation = await _api.createConversation();
+      final conversation = await _api.createConversation(
+        scanContext: widget.scanContext,
+      );
       if (!mounted) return;
       setState(() {
         _conversations = [conversation, ..._conversations];
         _conversation = conversation;
         _messages = [];
         _imageBytes = null;
+        _scanImageBytes = widget.scanImageBytes;
         _nextBefore = null;
+        _pendingMessageId = null;
+        _pendingMessageContent = null;
+        _messageFailed = false;
+        _messageController.clear();
       });
-      await _chooseImage();
+      final scanContext = conversation.scanContext;
+      if (scanContext != null && _scanImageBytes == null) {
+        try {
+          final image = await _loadOriginalScanImage(scanContext);
+          if (mounted && _conversation?.id == conversation.id) {
+            setState(() => _scanImageBytes = image);
+          }
+        } on MedicalScanApiException catch (error) {
+          if (mounted && error.statusCode != 404) _showError(error.message);
+        } on Exception {
+          if (mounted) _showError(t('scanImageUnavailable'));
+        }
+      }
     } on SkinChatApiException catch (error) {
       if (mounted) _showError(error.message);
     }
   }
 
+  Future<Uint8List?> _loadOriginalScanImage(
+    SkinChatScanContext scanContext,
+  ) async {
+    if (!scanContext.hasOriginalImage) return null;
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw const SkinChatApiException(
+        'Sign in again to load the stored scan image.',
+        statusCode: 401,
+      );
+    }
+    final client = http.Client();
+    try {
+      return await MedicalScanApi(
+        baseUrl: widget.baseUrl,
+        idToken: token,
+        client: client,
+      ).originalImage(scanContext.scanId);
+    } finally {
+      client.close();
+    }
+  }
+
   Future<void> _chooseImage() async {
-    final conversation = _conversation;
+    var conversation = _conversation;
     if (conversation == null) {
       await _startConversation();
-      return;
+      conversation = _conversation;
     }
+    if (conversation == null) return;
     if (conversation.hasImage) return;
     final XFile? file;
     try {
@@ -311,8 +458,8 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         imageQuality: 88,
         maxWidth: 2048,
       );
-    } on Exception catch (error) {
-      if (mounted) _showError('Could not open the image picker: $error');
+    } on Exception {
+      if (mounted) _showError(t('imagePickerFailed'));
       return;
     }
     if (file == null) return;
@@ -355,20 +502,39 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   }
 
   Future<void> _sendMessage([String? suggestion]) async {
-    final conversation = _conversation;
     final content = (suggestion ?? _messageController.text).trim();
-    if (conversation == null ||
-        !conversation.hasImageReference ||
-        content.isEmpty ||
-        _sending) {
+    if (content.isEmpty || _sending || _uploading) {
       return;
     }
+    var conversation = _conversation;
+    if (conversation == null) {
+      await _startConversation();
+      conversation = _conversation;
+    }
+    if (conversation == null) return;
     if (_pendingMessageId == null || _pendingMessageContent != content) {
       _pendingMessageId = DateTime.now().microsecondsSinceEpoch.toString();
       _pendingMessageContent = content;
     }
     final clientMessageId = _pendingMessageId!;
-    setState(() => _sending = true);
+    final pendingMessageId = 'pending-$clientMessageId';
+    setState(() {
+      if (!_messages.any((message) => message.id == pendingMessageId)) {
+        _messages = [
+          ..._messages,
+          SkinChatMessage(
+            id: pendingMessageId,
+            role: 'user',
+            content: content,
+            language: _language,
+            createdAt: DateTime.now(),
+          ),
+        ];
+      }
+      _sending = true;
+      _messageFailed = false;
+      if (suggestion == null) _messageController.clear();
+    });
     try {
       final (userMessage, reply) = await _api.sendMessage(
         conversation.id,
@@ -378,16 +544,24 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _messages = [..._messages, userMessage, reply];
-        if (suggestion == null || _messageController.text.trim() == content) {
-          _messageController.clear();
-        }
+        _messages = [
+          ..._messages.where((message) => message.id != pendingMessageId),
+          userMessage,
+          reply,
+        ];
+        _conversation = conversation!.copyWith(updatedAt: reply.createdAt);
+        _conversations = _conversations
+            .map(
+              (item) => item.id == conversation!.id ? _conversation! : item,
+            )
+            .toList()
+          ..sort(
+              (first, second) => second.updatedAt.compareTo(first.updatedAt));
         _sending = false;
         _messageFailed = false;
         _pendingMessageId = null;
         _pendingMessageContent = null;
       });
-      await _refreshConversations();
       _scrollToBottom();
     } on SkinChatApiException catch (error) {
       if (mounted) {
@@ -396,8 +570,18 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
           _messageFailed = true;
         });
         _showError(
-          error.statusCode == 408 ? t('requestTimeout') : error.message,
+          error.statusCode == 408 || error.statusCode == 504
+              ? t('requestTimeout')
+              : error.message,
         );
+      }
+    } on Exception {
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _messageFailed = true;
+        });
+        _showError(t('sendFailed'));
       }
     }
   }
@@ -535,6 +719,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
           _conversation = null;
           _messages = [];
           _imageBytes = null;
+          _scanImageBytes = null;
         }
       });
     } on SkinChatApiException catch (error) {
@@ -683,81 +868,84 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
               child: SizedBox(
                 key: const ValueKey('skinchat-content'),
                 width: AppBreakpoints.contentWidth(constraints.maxWidth),
-          child: Column(
-            children: [
-              if (_uploading)
-                Column(
+                child: Column(
                   children: [
-                    LinearProgressIndicator(
-                      value: _uploadProgress,
-                      minHeight: 2,
-                      color: const Color(0xFF12C7E8),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(
-                        '${t('uploading')} ${(_uploadProgress * 100).round()}%',
+                    if (_uploading)
+                      Column(
+                        children: [
+                          LinearProgressIndicator(
+                            value: _uploadProgress,
+                            minHeight: 2,
+                            color: const Color(0xFF12C7E8),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(
+                              '${t('uploading')} ${(_uploadProgress * 100).round()}%',
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                    if (_conversation != null)
+                    if (_activeScanContext != null)
+                      _scanContextCard(panel, accent, dark),
+                    if (_conversation != null && _activeScanContext == null)
+                      _generalModeNotice(panel),
+                    if (_conversation?.hasImageReference == true)
                       _imageContextCard(panel, accent, dark),
-              if (_conversation == null && !_loading)
-                _welcomeCard(panel, accent),
-              if (_loading)
-                const Expanded(
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF12C7E8),
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: _messages.isEmpty
-                      ? _emptyChat(panel, dark)
-                      : _messageList(panel, accent, dark),
-                ),
-                    if (_conversation?.hasImageReference == true &&
-                        _messages.isEmpty)
-                _suggestions(panel),
-              if (_sending || _messageFailed)
-                Padding(
+                    if (_conversation == null && !_loading)
+                      _welcomeCard(panel, accent),
+                    if (_loading)
+                      const Expanded(
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF12C7E8),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: _messages.isEmpty
+                            ? _emptyChat(panel, dark)
+                            : _messageList(panel, accent, dark),
+                      ),
+                    if (_conversation != null && _messages.isEmpty)
+                      _suggestions(panel),
+                    if (_sending || _messageFailed)
+                      Padding(
                         padding:
                             const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 6),
-                  child: Row(
-                    children: [
-                      if (_sending)
-                        const SizedBox(
-                          width: 15,
-                          height: 15,
+                        child: Row(
+                          children: [
+                            if (_sending)
+                              const SizedBox(
+                                width: 15,
+                                height: 15,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      if (_sending) const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _sending ? t('sending') : '',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                      if (_messageFailed)
-                        TextButton.icon(
-                          onPressed: _retryMessage,
+                              ),
+                            if (_sending) const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _sending ? t('sending') : '',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            if (_messageFailed)
+                              TextButton.icon(
+                                onPressed: _retryMessage,
                                 icon:
                                     const Icon(Icons.refresh_rounded, size: 18),
-                          label: Text(t('retry')),
+                                label: Text(t('retry')),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
+                      ),
+                    _disclaimer(panel, dark),
+                    _inputBar(panel, accent),
+                  ],
                 ),
-              _disclaimer(panel, dark),
-              _inputBar(panel, accent),
-            ],
-          ),
-        ),
-      ),
+              ),
+            ),
           ),
         ),
       ),
@@ -890,6 +1078,113 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
       ),
     );
   }
+
+  Widget _scanContextCard(Color panel, Color accent, bool dark) {
+    final scan = _activeScanContext!;
+    final image = _scanImageBytes;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 8, 14, 8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: panel,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(
+            color: accent.withValues(alpha: dark ? .24 : .18),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: image == null
+                  ? null
+                  : () => showDialog<void>(
+                        context: context,
+                        builder: (_) => Dialog(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: Image.memory(image, fit: BoxFit.contain),
+                          ),
+                        ),
+                      ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: image == null
+                      ? Icon(Icons.image_not_supported_outlined, color: accent)
+                      : Image.memory(image, fit: BoxFit.cover),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t('scanAttached'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  SelectableText('${t('scanId')}: ${scan.scanId}'),
+                  Text('${t('condition')}: ${scan.detectedCondition}'),
+                  Text(
+                    '${t('confidence')}: '
+                    '${scan.confidence.toStringAsFixed(1)}%',
+                  ),
+                  Text('${t('scanDate')}: ${_formatDate(scan.scanDate)}'),
+                  if (scan.bodyLocation?.isNotEmpty == true)
+                    Text('${t('bodyLocation')}: ${scan.bodyLocation}'),
+                  if (scan.summary?.isNotEmpty == true) ...[
+                    const SizedBox(height: 6),
+                    MarkdownBody(data: scan.summary!),
+                  ],
+                  if (image == null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        t('scanImageUnavailable'),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      t('screeningDisclaimer'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _generalModeNotice(Color panel) => Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 4),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: panel,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: const Color(0xFF12C7E8).withValues(alpha: .18),
+            ),
+          ),
+          child: Text(
+            t('generalMode'),
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.start,
+          ),
+        ),
+      );
 
   Widget _emptyChat(Color panel, bool dark) => ListView(
         padding: const EdgeInsets.all(20),
@@ -1037,8 +1332,9 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
           side:
               BorderSide(color: const Color(0xFF12C7E8).withValues(alpha: .3)),
           label: Text(t(suggestions[index])),
-          onPressed:
-              _sending ? null : () => _sendMessage(t(suggestions[index])),
+          onPressed: _sending || _messageFailed
+              ? null
+              : () => _sendMessage(t(suggestions[index])),
         ),
       ),
     );
@@ -1065,8 +1361,11 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
       );
 
   Widget _inputBar(Color panel, Color accent) {
-    final enabled =
-        _conversation?.hasImageReference == true && !_sending && !_uploading;
+    final enabled = _conversation != null &&
+        !_sending &&
+        !_uploading &&
+        !_loading &&
+        !_messageFailed;
     return Padding(
       padding: EdgeInsetsDirectional.fromSTEB(
         12,
@@ -1101,9 +1400,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
               },
               onSubmitted: enabled ? (_) => _sendMessage() : null,
               decoration: InputDecoration(
-                hintText: _conversation?.hasImageReference == true
-                    ? t('placeholder')
-                    : t('uploadHint'),
+                hintText: t('placeholder'),
                 filled: true,
                 fillColor: panel,
                 contentPadding: const EdgeInsets.symmetric(

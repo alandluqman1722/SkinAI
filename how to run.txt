@@ -134,3 +134,4 @@ may be lost when the server is redeployed.
 $env:MOCK_API = "0"
 $env:SCANSKIN_API_KEY = "df3O9hDg5-q0OqTtwZpbYCUvJ_WAYuD2wQHHEBxTCbQ"
 python app.py
+

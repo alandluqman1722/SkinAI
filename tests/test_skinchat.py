@@ -402,6 +402,15 @@ class SkinChatApiTests(unittest.TestCase):
                         {"role": "assistant", "content": "Use a gentle cleanser."},
                     ],
                     language="ku",
+                    scan_context={
+                        "scan_id": "scan-123",
+                        "detected_condition": "screening-result",
+                        "confidence": 72.5,
+                        "scan_date": "2026-11-16T10:00:00Z",
+                        "summary": "Screening summary.",
+                        "body_location": "left arm",
+                        "has_original_image": False,
+                    },
                 )
             )
 
@@ -414,6 +423,10 @@ class SkinChatApiTests(unittest.TestCase):
         self.assertEqual(provider.request["headers"]["x-goog-api-key"], "test-key")
         payload = provider.request["json"]
         self.assertIn("Sorani Kurdish", payload["systemInstruction"]["parts"][0]["text"])
+        self.assertIn(
+            '"detected_condition": "screening-result"',
+            payload["systemInstruction"]["parts"][0]["text"],
+        )
         self.assertEqual(
             [message["role"] for message in payload["contents"]],
             ["user", "model", "user"],
@@ -536,6 +549,42 @@ class SkinChatApiTests(unittest.TestCase):
         self.assertEqual(answer, "A cautious answer.")
         self.assertEqual(provider.post.await_count, 2)
 
+    def test_gemini_does_not_return_a_truncated_max_tokens_answer(self):
+        response = _ProviderResponse()
+        response.json = lambda: {
+            "candidates": [
+                {
+                    "finishReason": "MAX_TOKENS",
+                    "content": {
+                        "parts": [{"text": "The answer stopped in the"}],
+                    },
+                }
+            ]
+        }
+        provider = _ProviderClient(response)
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "SKINCHAT_AI_ENABLED": "true",
+                    "SKINCHAT_AI_API_KEY": "test-key",
+                    "SKINCHAT_AI_MODEL": "gemini-2.5-flash",
+                },
+            ),
+            patch.object(skinchat_ai.httpx, "AsyncClient", return_value=provider),
+        ):
+            with self.assertRaises(HTTPException) as incomplete:
+                asyncio.run(
+                    skinchat_ai.generate_response(
+                        question="How do I choose a sunscreen?",
+                        history=[],
+                        language="en",
+                    )
+                )
+
+        self.assertEqual(incomplete.exception.status_code, 502)
+        self.assertIn("could not finish", incomplete.exception.detail)
+
     def test_question_filter_blocks_unrelated_diagnosis_and_urgent_queries(self):
         self.assertEqual(
             skinchat_ai.classify_question("Write a Python program.", []),
@@ -580,6 +629,32 @@ class SkinChatApiTests(unittest.TestCase):
             skinchat_ai.classify_question(
                 "I have difficulty breathing and severe allergic swelling.",
                 [],
+            ),
+            "urgent",
+        )
+
+    def test_scan_context_allows_screening_follow_ups_but_not_diagnosis(self):
+        self.assertEqual(
+            skinchat_ai.classify_question(
+                "Is it dangerous?",
+                [],
+                has_scan_context=True,
+            ),
+            "skincare",
+        )
+        self.assertEqual(
+            skinchat_ai.classify_question(
+                "Do I have cancer?",
+                [],
+                has_scan_context=True,
+            ),
+            "diagnosis",
+        )
+        self.assertEqual(
+            skinchat_ai.classify_question(
+                "I have difficulty breathing.",
+                [],
+                has_scan_context=True,
             ),
             "urgent",
         )
@@ -675,6 +750,117 @@ class SkinChatApiTests(unittest.TestCase):
         )
         self.assertTrue(stored["image_upload_timestamp"])
         self.assertEqual(other_user.status_code, 404)
+
+    def test_scan_context_is_stored_only_in_the_owning_conversation(self):
+        context = {
+            "scan_id": "scan-123",
+            "detected_condition": "screening-result",
+            "confidence": 72.5,
+            "scan_date": "2026-11-16T10:00:00Z",
+            "summary": "Screening summary.",
+            "body_location": "left arm",
+            "has_original_image": False,
+        }
+        created = self._request(
+            "POST",
+            "/api/skinchat/conversations",
+            json={"scan_context": context},
+        )
+        self.assertEqual(created.status_code, 201)
+        conversation_id = created.json()["conversation_id"]
+        self.assertEqual(created.json()["scan_context"]["scan_id"], "scan-123")
+
+        owner_read = self._request(
+            "GET",
+            f"/api/skinchat/conversations/{conversation_id}",
+        )
+        other_user_read = self._request(
+            "GET",
+            f"/api/skinchat/conversations/{conversation_id}",
+            user_id="user-b",
+        )
+        self.assertEqual(owner_read.json()["scan_context"], context)
+        self.assertEqual(other_user_read.status_code, 404)
+
+    def test_scan_follow_up_passes_attached_result_to_provider_without_image(self):
+        context = {
+            "scan_id": "scan-follow-up",
+            "detected_condition": "screening-result",
+            "confidence": 81.0,
+            "scan_date": "2026-11-16T10:00:00Z",
+            "summary": "The screening model returned a result.",
+            "body_location": "left arm",
+            "has_original_image": False,
+        }
+        created = self._request(
+            "POST",
+            "/api/skinchat/conversations",
+            json={"scan_context": context},
+        )
+        conversation_id = created.json()["conversation_id"]
+        provider = AsyncMock(
+            side_effect=[
+                "This is a screening prediction, not a diagnosis.",
+                "A dermatologist can assess personal risk.",
+            ]
+        )
+        with patch.object(skinchat, "generate_response", new=provider):
+            first_response = self._request(
+                "POST",
+                f"/api/skinchat/conversations/{conversation_id}/messages",
+                json={
+                    "content": "What does this result mean?",
+                    "client_message_id": "scan-result-meaning",
+                    "language": "en",
+                },
+            )
+            second_response = self._request(
+                "POST",
+                f"/api/skinchat/conversations/{conversation_id}/messages",
+                json={
+                    "content": "Is it dangerous?",
+                    "client_message_id": "scan-danger-follow-up",
+                    "language": "en",
+                },
+            )
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(
+            first_response.json()["reply"]["content"],
+            "This is a screening prediction, not a diagnosis.",
+        )
+        self.assertEqual(provider.await_count, 2)
+        self.assertEqual(
+            provider.await_args_list[0].kwargs["scan_context"]["scan_id"],
+            "scan-follow-up",
+        )
+        self.assertEqual(
+            provider.await_args_list[1].kwargs["scan_context"]["scan_id"],
+            "scan-follow-up",
+        )
+        self.assertIn(
+            "What does this result mean?",
+            str(provider.await_args_list[1].kwargs["history"]),
+        )
+
+    def test_general_question_works_without_an_uploaded_image(self):
+        conversation_id = self._create()
+        provider = AsyncMock(return_value="A gentle cleanser may help.")
+        with patch.object(skinchat, "generate_response", new=provider):
+            response = self._request(
+                "POST",
+                f"/api/skinchat/conversations/{conversation_id}/messages",
+                json={
+                    "content": "Why does my skin become dry?",
+                    "client_message_id": "general-no-image",
+                    "language": "en",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        provider.assert_awaited_once()
+        self.assertNotIn("scan_context", provider.await_args.kwargs)
 
     def test_image_upload_validates_content_type_and_prevents_replacement(self):
         conversation_id = self._create()

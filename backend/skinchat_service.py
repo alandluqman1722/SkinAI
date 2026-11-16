@@ -64,6 +64,20 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ScanContext(StrictModel):
+    scan_id: str = Field(min_length=1, max_length=100)
+    detected_condition: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(ge=0, le=100)
+    scan_date: datetime
+    summary: str | None = Field(default=None, max_length=10000)
+    body_location: str | None = Field(default=None, max_length=200)
+    has_original_image: bool = False
+
+
+class NewConversation(StrictModel):
+    scan_context: ScanContext | None = None
+
+
 class NewMessage(StrictModel):
     content: str = Field(min_length=1, max_length=4000)
     client_message_id: str | None = Field(default=None, max_length=80)
@@ -240,6 +254,7 @@ def _serialize_conversation(snapshot: Any) -> dict[str, Any]:
 
 @router.post("", status_code=201)
 def create_conversation(
+    request: NewConversation | None = None,
     user: dict[str, Any] = Depends(require_firebase_user),
 ) -> dict[str, Any]:
     uid = user["uid"]
@@ -258,6 +273,11 @@ def create_conversation(
         "initial_analysis": None,
         "detected_visual_features": [],
         "detected_language": "en",
+        "scan_context": (
+            request.scan_context.model_dump(mode="json")
+            if request is not None and request.scan_context is not None
+            else None
+        ),
         "created_at": now,
         "updated_at": now,
     }
@@ -517,7 +537,7 @@ async def send_message(
 ) -> dict[str, Any]:
     uid = user["uid"]
     _check_rate_limit(uid)
-    reference, _ = _conversation(uid, conversation_id)
+    reference, conversation = _conversation(uid, conversation_id)
     language = selected_language(request.content, request.language)
     messages = reference.collection("messages")
     client_id = request.client_message_id or str(uuid4())
@@ -592,7 +612,12 @@ async def send_message(
         for message in history
         if message["role"] == "user"
     ]
-    category = classify_question(request.content, recent_user_messages)
+    scan_context = conversation.get("scan_context")
+    category = classify_question(
+        request.content,
+        recent_user_messages,
+        has_scan_context=isinstance(scan_context, dict),
+    )
     if category != "skincare":
         answer = policy_response(category, language)
     else:
@@ -601,11 +626,14 @@ async def send_message(
                 status_code=503,
                 detail="SkinChat AI is not enabled on the server.",
             )
-        answer = await generate_response(
-            question=request.content.strip(),
-            history=history,
-            language=language,
-        )
+        response_options: dict[str, Any] = {
+            "question": request.content.strip(),
+            "history": history,
+            "language": language,
+        }
+        if isinstance(scan_context, dict):
+            response_options["scan_context"] = scan_context
+        answer = await generate_response(**response_options)
     assistant_id = f"assistant-{client_id}"
     assistant_record = {
         "role": "assistant",

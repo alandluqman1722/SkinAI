@@ -76,8 +76,11 @@ class AppTheme {
   static ThemeData build(
     Brightness brightness, {
     Color? accentColor,
+    Locale? locale,
   }) {
     final isDark = brightness == Brightness.dark;
+    final isKurdish = locale != null &&
+        const {'ku', 'ckb', 'bad'}.contains(locale.languageCode);
     final accent = accentColor ??
         (isDark ? AppDesignTokens.cyan : const Color(0xFF0A7BD8));
     final background = isDark
@@ -86,6 +89,7 @@ class AppTheme {
 
     return ThemeData(
       brightness: brightness,
+      fontFamily: isKurdish ? 'NRT' : null,
       useMaterial3: true,
       scaffoldBackgroundColor: background,
       colorScheme: ColorScheme.fromSeed(
