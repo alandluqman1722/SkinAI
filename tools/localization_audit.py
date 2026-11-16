@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 LANGUAGES = ("en", "ku", "bad", "ar")
-DOMAINS = ("app", "settings", "notifications", "routines", "widgets")
+DOMAINS = ("app", "settings", "notifications", "routines", "widgets", "doctors")
 UNCHANGED_TEXT_ALLOWLIST = {"emailHint"}
 DOMAIN_PATTERN = re.compile(r"(?m)^\s{2}'([^']+)':(?:<[^>]+>)?\s*\{")
 KEY_PATTERN = re.compile(r"(?m)^\s{4}'([^']+)':\s*(.*)$")

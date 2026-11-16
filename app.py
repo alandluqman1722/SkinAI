@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.ai_service import router as analyze_router
+from backend.doctor_directory import router as doctor_directory_router
 from backend.firebase_app import PROJECT_ROOT, initialize_firebase_app
 from backend.medical_records import router as medical_router
 from backend.skinchat_service import router as skinchat_router
@@ -37,6 +38,7 @@ app = FastAPI(
 app.include_router(analyze_router)
 app.include_router(medical_router)
 app.include_router(skinchat_router)
+app.include_router(doctor_directory_router)
 
 # CORS configuration.
 app.add_middleware(

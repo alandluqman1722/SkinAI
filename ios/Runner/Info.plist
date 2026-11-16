@@ -8,6 +8,10 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Flutter Application 1</string>
+	<key>NSCameraUsageDescription</key>
+	<string>SkinAI needs camera access to take a photo of your skin for analysis.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SkinAI needs photo library access so you can choose a skin photo to analyze.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

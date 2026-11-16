@@ -6,6 +6,8 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:skin_ai/design/app_design_system.dart';
+import 'package:skin_ai/image_picker_feedback.dart';
+import 'package:skin_ai/localization/app_localizations.dart';
 import 'package:skin_ai/medical_scan_api.dart';
 import 'package:skin_ai/skinchat/models/skinchat_models.dart';
 import 'package:skin_ai/skinchat/services/skinchat_api_service.dart';
@@ -246,12 +248,15 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   bool _sending = false;
   bool _loadingOlder = false;
   bool _messageFailed = false;
+  bool _scanCardExpanded = false;
   String? _pendingMessageId;
   String? _pendingMessageContent;
 
   String get _language =>
       _copy.containsKey(widget.languageCode) ? widget.languageCode : 'en';
-  String t(String key) => _copy[_language]![key]!;
+  String t(String key) =>
+      _copy[_language]![key] ??
+      AppLocalizations.forLanguageCode(_language).text(key);
 
   bool get _rtl => _language != 'en';
   SkinChatScanContext? get _activeScanContext =>
@@ -458,8 +463,14 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         imageQuality: 88,
         maxWidth: 2048,
       );
-    } on Exception {
-      if (mounted) _showError(t('imagePickerFailed'));
+    } on Object catch (error) {
+      if (mounted) {
+        showImagePickerFailure(
+          context,
+          error,
+          translate: (key) => AppLocalizations.of(context).text(key),
+        );
+      }
       return;
     }
     if (file == null) return;
@@ -801,6 +812,8 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final compactViewport = MediaQuery.sizeOf(context).height < 600;
     final background = dark ? const Color(0xFF07111F) : const Color(0xFFF4F8FC);
     final panel = dark ? const Color(0xFF101D2D) : Colors.white;
     const accent = Color(0xFF12C7E8);
@@ -861,8 +874,10 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
             ),
           ],
         ),
+        resizeToAvoidBottomInset: true,
         body: SafeArea(
           top: false,
+          bottom: false,
           child: LayoutBuilder(
             builder: (context, constraints) => Center(
               child: SizedBox(
@@ -870,78 +885,80 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                 width: AppBreakpoints.contentWidth(constraints.maxWidth),
                 child: Column(
                   children: [
-                    if (_uploading)
-                      Column(
-                        children: [
-                          LinearProgressIndicator(
-                            value: _uploadProgress,
-                            minHeight: 2,
-                            color: const Color(0xFF12C7E8),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text(
-                              '${t('uploading')} ${(_uploadProgress * 100).round()}%',
+                    Expanded(
+                      child: CustomScrollView(
+                        controller: _scrollController,
+                        slivers: [
+                          if (_uploading)
+                            SliverToBoxAdapter(
+                              child: _uploadProgressIndicator(),
                             ),
+                          if (_activeScanContext != null)
+                            SliverToBoxAdapter(
+                              child: _scanContextCard(panel, accent, dark),
+                            ),
+                          if (_conversation != null &&
+                              _activeScanContext == null)
+                            SliverToBoxAdapter(
+                              child: _generalModeNotice(panel),
+                            ),
+                          if (_conversation?.hasImageReference == true)
+                            SliverToBoxAdapter(
+                              child: _imageContextCard(panel, accent, dark),
+                            ),
+                          if (_conversation == null && !_loading)
+                            SliverToBoxAdapter(
+                              child: _welcomeCard(panel, accent),
+                            ),
+                          if (_loading)
+                            const SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF12C7E8),
+                                ),
+                              ),
+                            )
+                          else if (_messages.isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _emptyChat(panel, dark),
+                            )
+                          else
+                            _messageList(panel, accent, dark),
+                        ],
+                      ),
+                    ),
+                    if (_conversation != null &&
+                        _messages.isEmpty &&
+                        !keyboardOpen)
+                      _suggestions(panel),
+                    if (_sending || _messageFailed) _messageStatus(),
+                    SafeArea(
+                      top: false,
+                      left: false,
+                      right: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _disclaimer(
+                            panel,
+                            dark,
+                            maxLines: compactViewport ? 1 : 2,
+                          ),
+                          _inputBar(
+                            panel,
+                            accent,
+                            keyboardOpen: keyboardOpen,
+                            maxLines: compactViewport
+                                ? 1
+                                : keyboardOpen
+                                    ? 2
+                                    : 4,
                           ),
                         ],
                       ),
-                    if (_activeScanContext != null)
-                      _scanContextCard(panel, accent, dark),
-                    if (_conversation != null && _activeScanContext == null)
-                      _generalModeNotice(panel),
-                    if (_conversation?.hasImageReference == true)
-                      _imageContextCard(panel, accent, dark),
-                    if (_conversation == null && !_loading)
-                      _welcomeCard(panel, accent),
-                    if (_loading)
-                      const Expanded(
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF12C7E8),
-                          ),
-                        ),
-                      )
-                    else
-                      Expanded(
-                        child: _messages.isEmpty
-                            ? _emptyChat(panel, dark)
-                            : _messageList(panel, accent, dark),
-                      ),
-                    if (_conversation != null && _messages.isEmpty)
-                      _suggestions(panel),
-                    if (_sending || _messageFailed)
-                      Padding(
-                        padding:
-                            const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 6),
-                        child: Row(
-                          children: [
-                            if (_sending)
-                              const SizedBox(
-                                width: 15,
-                                height: 15,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            if (_sending) const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _sending ? t('sending') : '',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                            if (_messageFailed)
-                              TextButton.icon(
-                                onPressed: _retryMessage,
-                                icon:
-                                    const Icon(Icons.refresh_rounded, size: 18),
-                                label: Text(t('retry')),
-                              ),
-                          ],
-                        ),
-                      ),
-                    _disclaimer(panel, dark),
-                    _inputBar(panel, accent),
+                    ),
                   ],
                 ),
               ),
@@ -951,6 +968,54 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
       ),
     );
   }
+
+  Widget _uploadProgressIndicator() => Column(
+        children: [
+          LinearProgressIndicator(
+            value: _uploadProgress,
+            minHeight: 2,
+            color: const Color(0xFF12C7E8),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.x2),
+            child: Text(
+              '${t('uploading')} ${(_uploadProgress * 100).round()}%',
+            ),
+          ),
+        ],
+      );
+
+  Widget _messageStatus() => Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          AppSpacing.x4,
+          AppSpacing.x1,
+          AppSpacing.x4,
+          AppSpacing.x1,
+        ),
+        child: Row(
+          children: [
+            if (_sending)
+              const SizedBox(
+                width: 15,
+                height: 15,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            if (_sending) const SizedBox(width: AppSpacing.x2),
+            Expanded(
+              child: Text(
+                _sending ? t('sending') : '',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            if (_messageFailed)
+              TextButton.icon(
+                onPressed: _retryMessage,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(t('retry')),
+              ),
+          ],
+        ),
+      );
 
   Widget _welcomeCard(Color panel, Color accent) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -1082,88 +1147,258 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   Widget _scanContextCard(Color panel, Color accent, bool dark) {
     final scan = _activeScanContext!;
     final image = _scanImageBytes;
+    final animationDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 200);
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(14, 8, 14, 8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.x4,
+        AppSpacing.x2,
+        AppSpacing.x4,
+        AppSpacing.x2,
+      ),
+      child: Semantics(
+        key: const ValueKey('attached-scan-card-semantics'),
+        container: true,
+        button: true,
+        expanded: _scanCardExpanded,
+        label: t('scanCardSemanticLabel'),
+        onTap: _toggleScanCard,
+        child: Material(
           color: panel,
-          borderRadius: BorderRadius.circular(19),
-          border: Border.all(
-            color: accent.withValues(alpha: dark ? .24 : .18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            side: BorderSide(
+              color: accent.withValues(alpha: dark ? .24 : .18),
+            ),
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: image == null
-                  ? null
-                  : () => showDialog<void>(
-                        context: context,
-                        builder: (_) => Dialog(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: Image.memory(image, fit: BoxFit.contain),
-                          ),
-                        ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const ValueKey('attached-scan-card'),
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            onTap: _toggleScanCard,
+            child: AnimatedSize(
+              duration: animationDuration,
+              curve: Curves.easeInOut,
+              alignment: AlignmentDirectional.topCenter,
+              child: _scanCardExpanded
+                  ? ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.6,
                       ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
-                child: SizedBox(
-                  width: 72,
-                  height: 72,
-                  child: image == null
-                      ? Icon(Icons.image_not_supported_outlined, color: accent)
-                      : Image.memory(image, fit: BoxFit.cover),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    t('scanAttached'),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  SelectableText('${t('scanId')}: ${scan.scanId}'),
-                  Text('${t('condition')}: ${scan.detectedCondition}'),
-                  Text(
-                    '${t('confidence')}: '
-                    '${scan.confidence.toStringAsFixed(1)}%',
-                  ),
-                  Text('${t('scanDate')}: ${_formatDate(scan.scanDate)}'),
-                  if (scan.bodyLocation?.isNotEmpty == true)
-                    Text('${t('bodyLocation')}: ${scan.bodyLocation}'),
-                  if (scan.summary?.isNotEmpty == true) ...[
-                    const SizedBox(height: 6),
-                    MarkdownBody(data: scan.summary!),
-                  ],
-                  if (image == null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        t('scanImageUnavailable'),
-                        style: Theme.of(context).textTheme.bodySmall,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(AppSpacing.x3),
+                        child: _expandedScanCard(scan, image, accent),
                       ),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.all(AppSpacing.x3),
+                      child: _collapsedScanCard(scan, image, accent),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      t('screeningDisclaimer'),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _collapsedScanCard(
+    SkinChatScanContext scan,
+    Uint8List? image,
+    Color accent,
+  ) {
+    final metadata = [
+      _formatDate(scan.scanDate),
+      if (scan.bodyLocation?.isNotEmpty == true) scan.bodyLocation!,
+    ].join(' · ');
+    final preview = scan.summary?.trim().isNotEmpty == true
+        ? _scanSummaryPreview(scan.summary!)
+        : null;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _scanThumbnail(
+          image,
+          accent,
+          56,
+          onTap: image == null ? null : _toggleScanCard,
+        ),
+        const SizedBox(width: AppSpacing.x2),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${scan.detectedCondition} · '
+                '${scan.confidence.toStringAsFixed(1)}%',
+                key: const ValueKey('attached-scan-title'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                metadata,
+                key: const ValueKey('attached-scan-metadata'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (preview != null)
+                Text(
+                  preview,
+                  key: const ValueKey('attached-scan-summary-preview'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              Text(
+                t('scanCardCompactDisclaimer'),
+                key: const ValueKey('attached-scan-compact-disclaimer'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: t('scanCardShowMore'),
+          onPressed: _toggleScanCard,
+          style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+          icon: const Icon(Icons.expand_more_rounded),
+        ),
+      ],
+    );
+  }
+
+  Widget _expandedScanCard(
+    SkinChatScanContext scan,
+    Uint8List? image,
+    Color accent,
+  ) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _scanThumbnail(
+            image,
+            accent,
+            72,
+            onTap: image == null ? null : () => _showScanImage(image),
+          ),
+          const SizedBox(width: AppSpacing.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        t('scanAttached'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: t('scanCardShowLess'),
+                      onPressed: _toggleScanCard,
+                      style:
+                          IconButton.styleFrom(minimumSize: const Size(48, 48)),
+                      icon: const Icon(Icons.expand_less_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.x1),
+                SelectableText('${t('scanId')}: ${scan.scanId}'),
+                Text('${t('condition')}: ${scan.detectedCondition}'),
+                Text(
+                  '${t('confidence')}: '
+                  '${scan.confidence.toStringAsFixed(1)}%',
+                ),
+                Text('${t('scanDate')}: ${_formatDate(scan.scanDate)}'),
+                if (scan.bodyLocation?.isNotEmpty == true)
+                  Text('${t('bodyLocation')}: ${scan.bodyLocation}'),
+                if (scan.summary?.isNotEmpty == true) ...[
+                  const SizedBox(height: AppSpacing.x2),
+                  MarkdownBody(data: scan.summary!),
+                ],
+                if (image == null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.x2),
+                    child: Text(
+                      t('scanImageUnavailable'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.x2),
+                  child: Text(
+                    t('screeningDisclaimer'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+
+  Widget _scanThumbnail(
+    Uint8List? image,
+    Color accent,
+    double size, {
+    VoidCallback? onTap,
+  }) =>
+      InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: image == null
+                ? Icon(Icons.image_not_supported_outlined, color: accent)
+                : Image.memory(image, fit: BoxFit.cover),
+          ),
+        ),
+      );
+
+  void _showScanImage(Uint8List image) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          child: Image.memory(image, fit: BoxFit.contain),
+        ),
+      ),
+    );
+  }
+
+  void _toggleScanCard() {
+    setState(() => _scanCardExpanded = !_scanCardExpanded);
+  }
+
+  String _scanSummaryPreview(String summary) {
+    final text = summary
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1')
+        .replaceAll(RegExp(r'^\s{0,3}#{1,6}\s*', multiLine: true), '')
+        .replaceAll(RegExp(r'^\s{0,3}>\s*', multiLine: true), '')
+        .replaceAll(RegExp(r'^\s*-\s+', multiLine: true), '')
+        .replaceAll(RegExp(r'^\s*\+\s+', multiLine: true), '')
+        .replaceAll(RegExp(r'^\s*\*\s+', multiLine: true), '')
+        .replaceAll(RegExp(r'^\s*\d+\.\s+', multiLine: true), '')
+        .replaceAll(RegExp(r'[*_`~]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final sentenceEnd = RegExp(r'[.!?](?=\s|$)').firstMatch(text);
+    if (sentenceEnd != null && sentenceEnd.end <= 140) {
+      return text.substring(0, sentenceEnd.end);
+    }
+    if (text.length <= 140) return text;
+    return '${text.substring(0, 137).trimRight()}…';
   }
 
   Widget _generalModeNotice(Color panel) => Padding(
@@ -1186,163 +1421,204 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         ),
       );
 
-  Widget _emptyChat(Color panel, bool dark) => ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const SizedBox(height: 20),
-          Icon(
-            Icons.chat_bubble_outline_rounded,
-            size: 42,
-            color: const Color(0xFF12C7E8).withValues(alpha: .8),
+  Widget _emptyChat(Color panel, bool dark) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.x6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 42,
+                color: const Color(0xFF12C7E8).withValues(alpha: .8),
+              ),
+              const SizedBox(height: AppSpacing.x3),
+              Text(t('emptyChat'), textAlign: TextAlign.center),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(t('emptyChat'), textAlign: TextAlign.center),
-        ],
+        ),
       );
 
-  Widget _messageList(Color panel, Color accent, bool dark) => ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        itemCount: _messages.length + (_nextBefore == null ? 0 : 1),
-        itemBuilder: (context, index) {
-          if (_nextBefore != null && index == 0) {
-            return Center(
-              child: TextButton(
-                onPressed: _loadingOlder ? null : _loadOlderMessages,
-                child: _loadingOlder
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(t('older')),
-              ),
-            );
-          }
-          final messageIndex = index - (_nextBefore == null ? 0 : 1);
-          final message = _messages[messageIndex];
-          final isUser = message.role == 'user';
-          final messageColor =
-              isUser ? Colors.white : Theme.of(context).colorScheme.onSurface;
-          return Align(
-            key: ValueKey('skinchat-message-${message.id}'),
-            alignment: isUser
-                ? AlignmentDirectional.centerEnd
-                : AlignmentDirectional.centerStart,
-            child: GestureDetector(
-              onLongPress: () => _deleteMessage(message),
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: AppBreakpoints.fromWidth(
-                            MediaQuery.sizeOf(context).width,
-                          ) ==
-                          AppViewport.expanded
-                      ? 760
-                      : MediaQuery.sizeOf(context).width * .84,
-                ),
-                margin: const EdgeInsets.symmetric(vertical: 5),
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-                decoration: BoxDecoration(
-                  color: isUser ? const Color(0xFF1469E8) : panel,
-                  borderRadius: BorderRadiusDirectional.only(
-                    topStart: const Radius.circular(18),
-                    topEnd: const Radius.circular(18),
-                    bottomStart: Radius.circular(isUser ? 18 : 5),
-                    bottomEnd: Radius.circular(isUser ? 5 : 18),
+  Widget _messageList(Color panel, Color accent, bool dark) => SliverPadding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.x4,
+          AppSpacing.x2,
+          AppSpacing.x4,
+          AppSpacing.x4,
+        ),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (_nextBefore != null && index == 0) {
+                return Center(
+                  child: TextButton(
+                    onPressed: _loadingOlder ? null : _loadOlderMessages,
+                    child: _loadingOlder
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(t('older')),
                   ),
-                  border: isUser
-                      ? null
-                      : Border.all(
-                          color: accent.withValues(alpha: dark ? .14 : .12),
-                        ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Directionality(
-                      textDirection:
-                          _messageDirection(message.language, message.content),
-                      child: MarkdownBody(
-                        data: message.content,
-                        selectable: true,
-                        imageBuilder: (_, __, ___) => const SizedBox.shrink(),
-                        styleSheet: MarkdownStyleSheet(
-                          p: TextStyle(color: messageColor, height: 1.45),
-                          h1: TextStyle(
-                            color: messageColor,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                          h2: TextStyle(
-                            color: messageColor,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          h3: TextStyle(
-                            color: messageColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          strong: TextStyle(
-                            color: messageColor,
-                            fontWeight: FontWeight.w800,
-                          ),
-                          em: TextStyle(
-                            color: messageColor,
-                            fontStyle: FontStyle.italic,
-                          ),
-                          listBullet: TextStyle(color: messageColor),
-                          code: TextStyle(
-                            color: messageColor,
-                            backgroundColor: isUser ? Colors.white24 : panel,
-                          ),
-                        ),
-                      ),
+                );
+              }
+              final messageIndex = index - (_nextBefore == null ? 0 : 1);
+              final message = _messages[messageIndex];
+              final isUser = message.role == 'user';
+              final messageColor = isUser
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onSurface;
+              return Align(
+                key: ValueKey('skinchat-message-${message.id}'),
+                alignment: isUser
+                    ? AlignmentDirectional.centerEnd
+                    : AlignmentDirectional.centerStart,
+                child: GestureDetector(
+                  onLongPress: () => _deleteMessage(message),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: AppBreakpoints.fromWidth(
+                                MediaQuery.sizeOf(context).width,
+                              ) ==
+                              AppViewport.expanded
+                          ? 760
+                          : MediaQuery.sizeOf(context).width * .84,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${message.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
-                      '${message.createdAt.toLocal().minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(
-                        color: isUser
-                            ? Colors.white70
-                            : Theme.of(context).textTheme.bodySmall?.color,
-                        fontSize: 10,
+                    margin: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                    decoration: BoxDecoration(
+                      color: isUser ? const Color(0xFF1469E8) : panel,
+                      borderRadius: BorderRadiusDirectional.only(
+                        topStart: const Radius.circular(18),
+                        topEnd: const Radius.circular(18),
+                        bottomStart: Radius.circular(isUser ? 18 : 5),
+                        bottomEnd: Radius.circular(isUser ? 5 : 18),
                       ),
+                      border: isUser
+                          ? null
+                          : Border.all(
+                              color: accent.withValues(alpha: dark ? .14 : .12),
+                            ),
                     ),
-                  ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Directionality(
+                          textDirection: _messageDirection(
+                              message.language, message.content),
+                          child: MarkdownBody(
+                            data: message.content,
+                            selectable: true,
+                            imageBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                            styleSheet: MarkdownStyleSheet(
+                              p: TextStyle(color: messageColor, height: 1.45),
+                              h1: TextStyle(
+                                color: messageColor,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                              h2: TextStyle(
+                                color: messageColor,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              h3: TextStyle(
+                                color: messageColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              strong: TextStyle(
+                                color: messageColor,
+                                fontWeight: FontWeight.w800,
+                              ),
+                              em: TextStyle(
+                                color: messageColor,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              listBullet: TextStyle(color: messageColor),
+                              code: TextStyle(
+                                color: messageColor,
+                                backgroundColor:
+                                    isUser ? Colors.white24 : panel,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${message.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
+                          '${message.createdAt.toLocal().minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                            color: isUser
+                                ? Colors.white70
+                                : Theme.of(context).textTheme.bodySmall?.color,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            },
+            childCount: _messages.length + (_nextBefore == null ? 0 : 1),
+          ),
+        ),
       );
 
   Widget _suggestions(Color panel) {
     const suggestions = ['suggest1', 'suggest2', 'suggest3'];
-    return SizedBox(
-      height: 42,
-      child: ListView.separated(
-        padding: const EdgeInsetsDirectional.fromSTEB(14, 0, 14, 5),
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.x4,
+        0,
+        AppSpacing.x4,
+        AppSpacing.x1,
+      ),
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        itemCount: suggestions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) => ActionChip(
-          backgroundColor: panel,
-          side:
-              BorderSide(color: const Color(0xFF12C7E8).withValues(alpha: .3)),
-          label: Text(t(suggestions[index])),
-          onPressed: _sending || _messageFailed
-              ? null
-              : () => _sendMessage(t(suggestions[index])),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var index = 0; index < suggestions.length; index++) ...[
+              if (index > 0) const SizedBox(width: AppSpacing.x2),
+              ActionChip(
+                backgroundColor: panel,
+                side: BorderSide(
+                  color: const Color(0xFF12C7E8).withValues(alpha: .3),
+                ),
+                label: Text(
+                  t(suggestions[index]),
+                  maxLines: 1,
+                  softWrap: false,
+                ),
+                onPressed: _sending || _messageFailed
+                    ? null
+                    : () => _sendMessage(t(suggestions[index])),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  Widget _disclaimer(Color panel, bool dark) => Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 7),
+  Widget _disclaimer(
+    Color panel,
+    bool dark, {
+    required int maxLines,
+  }) =>
+      Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          AppSpacing.x4,
+          AppSpacing.x1,
+          AppSpacing.x4,
+          AppSpacing.x1,
+        ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
               Icons.info_outline_rounded,
@@ -1353,6 +1629,9 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
             Expanded(
               child: Text(
                 t('disclaimer'),
+                maxLines: maxLines,
+                overflow: TextOverflow.ellipsis,
+                softWrap: true,
                 style: Theme.of(context).textTheme.labelSmall,
               ),
             ),
@@ -1360,18 +1639,23 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         ),
       );
 
-  Widget _inputBar(Color panel, Color accent) {
+  Widget _inputBar(
+    Color panel,
+    Color accent, {
+    required bool keyboardOpen,
+    required int maxLines,
+  }) {
     final enabled = _conversation != null &&
         !_sending &&
         !_uploading &&
         !_loading &&
         !_messageFailed;
     return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(
-        12,
-        5,
-        12,
-        MediaQuery.viewInsetsOf(context).bottom > 0 ? 8 : 12,
+      padding: EdgeInsetsDirectional.only(
+        start: AppSpacing.x3,
+        end: AppSpacing.x3,
+        top: AppSpacing.x1,
+        bottom: keyboardOpen ? AppSpacing.x1 : AppSpacing.x2,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1387,7 +1671,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
               controller: _messageController,
               enabled: enabled,
               minLines: 1,
-              maxLines: 4,
+              maxLines: maxLines,
               textDirection: _messageDirection('', _messageController.text),
               onChanged: (value) {
                 if (_pendingMessageContent != null &&

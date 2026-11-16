@@ -27,10 +27,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('dashboard-nav-2')));
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.text('Where is your skin concern?'), findsOneWidget);
-    await tester.ensureVisible(
-      find.text('Continue without location or concern'),
-    );
-    await tester.tap(find.text('Continue without location or concern'));
+    await tester.ensureVisible(find.text('Continue').last);
+    await tester.tap(find.text('Continue').last);
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byKey(const ValueKey('scan-details-column')), findsOneWidget);
@@ -39,11 +37,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('scanner offers optional fields and a no-location path', (
+  testWidgets('scanner uses optional selections without free-text inputs', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 2400);
+    tester.view.physicalSize = const Size(390, 4000);
     tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     SharedPreferences.setMockInitialValues({});
     final controller = AppController();
     await controller.init();
@@ -57,28 +59,34 @@ void main() {
 
     await tester.tap(find.byType(NavigationDestination).at(2));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Continue without location or concern'), findsOneWidget);
+    expect(find.text('Face'), findsOneWidget);
+    expect(find.text('General skin concern'), findsOneWidget);
     expect(
       find.text(
-        'This is a screening tool, not a medical diagnosis. Please consult a healthcare professional.',
+        'This is an AI screening tool, not a medical diagnosis. Please consult a qualified healthcare professional.',
       ),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Continue without location or concern'));
+    await tester.tap(find.text('Continue').last);
     await tester.pump();
 
     expect(find.text('Choose a photo to analyze'), findsOneWidget);
     expect(find.text('Choose from Gallery'), findsOneWidget);
     expect(find.text('Open Camera'), findsOneWidget);
-    expect(find.text('Analyze image'), findsOneWidget);
     expect(find.text('Save scan details to my account'), findsOneWidget);
+    await tester.dragUntilVisible(
+      find.text('Also store the original image'),
+      find.byType(ListView).last,
+      const Offset(0, -500),
+    );
     expect(find.text('Also store the original image'), findsOneWidget);
-    expect(find.byType(TextField), findsNWidgets(4));
+    expect(find.byType(TextField), findsNothing);
+    expect(
+        find.text('How long has it been present? (optional)'), findsOneWidget);
+    expect(find.text('Symptoms (optional)'), findsOneWidget);
+    expect(find.text('Change over time (optional)'), findsOneWidget);
     expect(find.textContaining('HAM10000'), findsNothing);
     expect(find.textContaining('Ivy AI'), findsNothing);
-
-    tester.view.resetPhysicalSize();
-    tester.view.resetDevicePixelRatio();
   });
 }

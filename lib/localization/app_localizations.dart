@@ -52,6 +52,7 @@ class AppLocalizations {
     'notifications',
     'routines',
     'widgets',
+    'doctors',
   ];
 
   static Set<String> keysFor(String languageCode, String domain) =>

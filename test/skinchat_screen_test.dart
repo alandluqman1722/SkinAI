@@ -29,12 +29,10 @@ void main() {
           'image_available': false,
         });
       }
-      if (request.url.path.endsWith('/messages') &&
-          request.method == 'GET') {
+      if (request.url.path.endsWith('/messages') && request.method == 'GET') {
         return _jsonResponse({'messages': [], 'next_before': null});
       }
-      if (request.url.path.endsWith('/messages') &&
-          request.method == 'POST') {
+      if (request.url.path.endsWith('/messages') && request.method == 'POST') {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body['content'], 'Why does my skin become dry?');
         return replyCompleter.future;
@@ -114,12 +112,10 @@ void main() {
           'image_available': false,
         });
       }
-      if (request.url.path.endsWith('/messages') &&
-          request.method == 'GET') {
+      if (request.url.path.endsWith('/messages') && request.method == 'GET') {
         return _jsonResponse({'messages': [], 'next_before': null});
       }
-      if (request.url.path.endsWith('/messages') &&
-          request.method == 'POST') {
+      if (request.url.path.endsWith('/messages') && request.method == 'POST') {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         messageIds.add(body['client_message_id'] as String);
         sendAttempts++;
@@ -208,8 +204,7 @@ void main() {
       if (request.url.path == '/api/skinchat/conversations' &&
           request.method == 'POST') {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final attachedContext =
-            body['scan_context'] as Map<String, dynamic>;
+        final attachedContext = body['scan_context'] as Map<String, dynamic>;
         expect(attachedContext['scan_id'], 'scan-123');
         return _jsonResponse({
           'conversation_id': 'conversation-scan',
@@ -246,9 +241,21 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Scan ID: scan-123'), findsOneWidget);
-    expect(find.text('Detected result: screening-result'), findsOneWidget);
-    expect(find.text('Model confidence: 72.5%'), findsOneWidget);
+    expect(find.text('screening-result · 72.5%'), findsOneWidget);
+    expect(find.text('Scan ID: scan-123'), findsNothing);
+    expect(
+      find.text('AI screening result, not a diagnosis.'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<Semantics>(
+            find.byKey(const ValueKey('attached-scan-card-semantics')),
+          )
+          .properties
+          .expanded,
+      isFalse,
+    );
     final preview = tester.widget<Image>(find.byType(Image).first);
     expect(
       (preview.image as MemoryImage).bytes,
@@ -332,7 +339,10 @@ void main() {
     final contentContext =
         tester.element(find.byKey(const ValueKey('skinchat-content')));
     expect(Directionality.of(contentContext), TextDirection.rtl);
-    await tester.drag(find.byType(ListView).first, const Offset(0, 300));
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, 300),
+    );
     await tester.pumpAndSettle();
     expect(
       tester
@@ -347,7 +357,231 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     client.close();
   });
+
+  testWidgets('attached scan collapses by default and expands in place',
+      (tester) async {
+    _setViewport(tester, const Size(390, 844));
+    addTearDown(_resetViewport(tester));
+    const summary = '''
+### Screening result
+
+**Psoriasis** can cause a raised, scaly rash. This longer paragraph contains additional details and guidance that should only appear after the attached scan card is expanded.
+
+### Next steps
+
+Arrange a clinician review if the symptoms persist or worsen.
+''';
+    final scanContext = _scanContext(summary);
+    final client = _scanContextClient();
+    final api = SkinChatApiService(
+      baseUrl: 'http://localhost:8000',
+      idTokenProvider: () async => 'test-token',
+      client: client,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SkinChatScreen(
+          baseUrl: 'http://localhost:8000',
+          languageCode: 'en',
+          scanContext: scanContext,
+          api: api,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Scan ID: scan-expanded'), findsNothing);
+    expect(find.text('AI screening result, not a diagnosis.'), findsOneWidget);
+    final preview = tester.widget<Text>(
+      find.byKey(const ValueKey('attached-scan-summary-preview')),
+    );
+    expect(preview.data, isNot(contains('**')));
+    expect(preview.data, isNot(contains('###')));
+    expect(preview.maxLines, 2);
+    expect(preview.data, contains('Psoriasis'));
+    expect(preview.data, isNot(contains('Next steps')));
+
+    await tester.tap(find.byKey(const ValueKey('attached-scan-card')));
+    await tester.pumpAndSettle();
+    expect(find.text('Scan ID: scan-expanded'), findsOneWidget);
+    expect(
+      tester.widgetList<MarkdownBody>(find.byType(MarkdownBody)).single.data,
+      summary,
+    );
+    expect(find.text('This is an AI screening prediction, not a diagnosis.'),
+        findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('attached-scan-card'))).height,
+      lessThanOrEqualTo(844 * 0.6),
+    );
+    expect(
+      tester
+          .widget<Semantics>(
+            find.byKey(const ValueKey('attached-scan-card-semantics')),
+          )
+          .properties
+          .expanded,
+      isTrue,
+    );
+
+    await tester.tap(find.byTooltip('Show less'));
+    await tester.pumpAndSettle();
+    expect(find.text('Scan ID: scan-expanded'), findsNothing);
+
+    await tester.tap(find.byTooltip('Show more'));
+    await tester.pumpAndSettle();
+    expect(find.text('Scan ID: scan-expanded'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('attached-scan-card')));
+    await tester.pumpAndSettle();
+    expect(find.text('Scan ID: scan-expanded'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    client.close();
+  });
+
+  testWidgets(
+      'SkinChat remains overflow-free across viewport, text scale, keyboard, and direction',
+      (tester) async {
+    const viewports = [
+      Size(320, 740),
+      Size(360, 780),
+      Size(390, 844),
+      Size(600, 900),
+      Size(1024, 768),
+      Size(568, 320),
+    ];
+    const languages = ['en', 'ku', 'bad', 'ar'];
+    const textScales = [1.0, 1.5, 2.0];
+    final client = _scanContextClient();
+    final api = SkinChatApiService(
+      baseUrl: 'http://localhost:8000',
+      idTokenProvider: () async => 'test-token',
+      client: client,
+    );
+    final scanContext = _scanContext(
+      List.filled(
+        8,
+        '### Screening result\n\n**Psoriasis** may cause a raised, scaly rash. '
+        'This summary contains longer follow-up details to verify scrolling '
+        'inside the expanded card without pushing the chat controls away.',
+      ).join('\n\n'),
+    );
+
+    addTearDown(_resetViewport(tester));
+    _setViewport(tester, viewports.first);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(320, 740),
+            viewPadding: EdgeInsets.only(bottom: 24),
+            padding: EdgeInsets.only(bottom: 24),
+          ),
+          child: SkinChatScreen(
+            key: const ValueKey('responsive-skinchat'),
+            baseUrl: 'http://localhost:8000',
+            languageCode: 'en',
+            scanContext: scanContext,
+            api: api,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show more'));
+    await tester.pumpAndSettle();
+
+    for (final viewport in viewports) {
+      _setViewport(tester, viewport);
+      for (final language in languages) {
+        for (final scale in textScales) {
+          for (final keyboardOpen in [false, true]) {
+            final keyboardInset = keyboardOpen ? viewport.height * 0.4 : 0.0;
+            final mediaData = MediaQueryData(
+              size: viewport,
+              textScaler: TextScaler.linear(scale),
+              viewInsets: EdgeInsets.only(bottom: keyboardInset),
+              viewPadding: const EdgeInsets.only(bottom: 24),
+              padding: keyboardOpen
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.only(bottom: 24),
+            );
+            await tester.pumpWidget(
+              MaterialApp(
+                home: MediaQuery(
+                  data: mediaData,
+                  child: SkinChatScreen(
+                    key: const ValueKey('responsive-skinchat'),
+                    baseUrl: 'http://localhost:8000',
+                    languageCode: language,
+                    scanContext: scanContext,
+                    api: api,
+                  ),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+            final layoutException = tester.takeException();
+            expect(
+              layoutException,
+              isNull,
+              reason: '$viewport, $language, scale $scale, '
+                  'keyboard $keyboardOpen: $layoutException',
+            );
+            expect(find.byType(TextField), findsOneWidget);
+            expect(
+              tester
+                  .widget<Semantics>(
+                    find.byKey(
+                      const ValueKey('attached-scan-card-semantics'),
+                    ),
+                  )
+                  .properties
+                  .expanded,
+              isTrue,
+            );
+          }
+        }
+      }
+    }
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    client.close();
+  });
 }
+
+SkinChatScanContext _scanContext(String summary) => SkinChatScanContext(
+      scanId: 'scan-expanded',
+      detectedCondition: 'Psoriasis',
+      confidence: 94,
+      scanDate: DateTime.utc(2026, 11, 16),
+      summary: summary,
+      bodyLocation: 'Face',
+    );
+
+MockClient _scanContextClient() => MockClient((request) async {
+      if (request.url.path == '/api/skinchat/conversations' &&
+          request.method == 'GET') {
+        return _jsonResponse([]);
+      }
+      if (request.url.path == '/api/skinchat/conversations' &&
+          request.method == 'POST') {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        return _jsonResponse({
+          'conversation_id': 'conversation-scan',
+          'created_at': '2026-11-16T10:00:00Z',
+          'updated_at': '2026-11-16T10:00:00Z',
+          'image_available': false,
+          'scan_context': body['scan_context'],
+        });
+      }
+      if (request.url.path.endsWith('/messages')) {
+        return _jsonResponse({'messages': [], 'next_before': null});
+      }
+      return http.Response('', 404);
+    });
 
 MockClient _chatClient() => MockClient((request) async {
       if (request.url.path == '/api/skinchat/conversations') {
@@ -384,7 +618,8 @@ MockClient _chatClient() => MockClient((request) async {
       return http.Response('', 404);
     });
 
-http.Response _jsonResponse(Object body, {int statusCode = 200}) => http.Response(
+http.Response _jsonResponse(Object body, {int statusCode = 200}) =>
+    http.Response(
       jsonEncode(body),
       statusCode,
       headers: {'content-type': 'application/json; charset=utf-8'},

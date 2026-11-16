@@ -18,7 +18,8 @@ professional.
 - The server accepts JPG, PNG, WebP, BMP, GIF, and TIFF uploads up to 10 MB;
   the provider receives a JPEG resized to at most 2000 pixels on its longest
   side.
-- Optional location and symptom fields are forwarded only when provided.
+- Optional location, duration, symptoms, and change-over-time fields are
+  forwarded only when selected in the structured scanner controls.
 - Successful responses are saved as generated IDs and timestamps in the local
   `scan_log.jsonl` file. Images and symptom fields are not written to that log.
 - `GET /health` reports service status. `MOCK_API=1` returns a fake analysis
@@ -45,6 +46,15 @@ professional.
   Firebase custom claims `skinchat_plan=paid` and
   `skinchat_subscription_status=active`. Missing or inactive claims get the
   free allowance.
+- Dermatologist discovery uses real Firestore profiles from `doctors`; no
+  sample doctors, clinics, coordinates, reviews, or ratings are seeded.
+  Directory reads expose only published profiles, and a verified badge is
+  shown only after an administrator approves the profile's verification.
+- Doctor favorites are scoped to `users/{uid}`. Appointment requests, slot
+  locks, reviews, and reports are server-validated and stored in
+  `doctor_appointments`, `doctor_appointment_slots`, `doctor_reviews`, and
+  `doctor_review_reports`. Verification documents are stored separately from
+  public profiles and require the administrator claim to access.
 
 The old model implementations, datasets, model binaries, and training scripts
 are preserved under [`_to_delete/`](_to_delete/); they are not imported by the
@@ -131,6 +141,45 @@ active app.
    only in a container's writable layer may be lost on redeployment or instance
    replacement; no persistence across deployment is assumed.
 
+6. Configure a persistent, private location for doctor photos and verification
+   documents when deploying outside a local development environment:
+
+   ```dotenv
+   SKINAI_DOCTOR_STORAGE_DIR=backend/uploads/doctors
+   ```
+
+   This is the default for local development. In production, point it to a
+   mounted persistent volume restricted to the API service. Doctor images and
+   verification files are not public static files; the API serves doctor
+   profile photos through the directory endpoint and verification documents
+   only through administrator-authenticated endpoints.
+
+7. Grant administrator access only to a trusted Firebase account. With the
+   backend Firebase Admin credentials configured, run this from the repository
+   root:
+
+   ```powershell
+   .\backend\.venv\Scripts\python.exe -m backend.manage_doctor_admin FIREBASE_UID
+   ```
+
+   Replace `FIREBASE_UID` with the intended administrator's Firebase UID. The
+   user must refresh their ID token (signing out and back in is sufficient)
+   before the app will use the claim. Revoke the claim with:
+
+   ```powershell
+   .\backend\.venv\Scripts\python.exe -m backend.manage_doctor_admin --revoke FIREBASE_UID
+   ```
+
+   Do not grant the claim from client-controlled code. The admin screen can
+   create or edit doctor and clinic records, upload real profile photos and
+   verification documents, approve or reject verification, manage availability
+   and appointment status, and moderate reviews and reports. Publishing
+   requires a real profile photo. Add only information verified by your
+   administrators. There are no seeded doctors; the app displays an empty
+   directory until real records are added. Clinic directions use coordinates
+   only when an administrator has entered them; otherwise the verified address
+   is shown without a map pin.
+
 ## Flutter app
 
 With the backend running, use the repository's Firebase client configuration
@@ -154,6 +203,7 @@ that client ID, the app still starts, but Google sign-in is unavailable on web.
 Backend tests use mocked provider calls and do not contact ScanSkinAI:
 
 ```powershell
+.\backend\.venv\Scripts\python.exe -m pytest tests\test_doctor_directory.py tests\test_localization_audit.py -q
 .\backend\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_skinchat.py"
 .\backend\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_medical_records.py"
 .\backend\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_scanskin_api.py"

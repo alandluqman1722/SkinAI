@@ -23,7 +23,14 @@ class LocalizationAuditTests(unittest.TestCase):
                 )
 
     def test_badini_catalog_is_complete(self):
-        for domain in ("app", "settings", "notifications", "routines", "widgets"):
+        for domain in (
+            "app",
+            "settings",
+            "notifications",
+            "routines",
+            "widgets",
+            "doctors",
+        ):
             self.assertEqual(self.report["missing"]["bad"][domain], [], domain)
             self.assertEqual(self.report["extra"]["bad"][domain], [], domain)
 

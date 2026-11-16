@@ -1,5 +1,315 @@
 SkinAI — Run the complete application on Windows
 
+
+
+
+
+==========================================================================
+SkinAI - ڕێبەری تەواوی بەڕێوەبردن (Windows + iPhone)
+==========================================================================
+ئەم فایلە هەموو هەنگاوەکانی تێدایە. ئەگەر وەستای و دواتر گەڕایتەوە،
+لە بەشی ٢ دەست پێبکە.
+
+شوێنی پرۆژە: E:\Desktop\nn\skin_ai
+تێرمیناڵ: PowerShell (فەرمانەکان بۆ PowerShell نووسراون)
+
+!! گرنگ: هیچ کلیلێک لەم فایلەدا مەنووسە و لە چات یان GitHub بڵاوی مەکەرەوە.
+   کلیلەکان تەنها لە فایلی .env دان.
+
+
+==========================================================================
+١. ئەوەی پێویستە کار بکات (کورتە)
+==========================================================================
+بۆ ئەوەی ئەپەکە لەسەر ئایفۆن سکان و SkinChat بکات، سێ شت پێویستە:
+
+  1) باکەند (FastAPI) لەسەر لاپتۆپەکەت کار بکات      -> پەنجەرەی PowerShell ١
+  2) tunnel (cloudflared) لینکێکی HTTPS بدات         -> پەنجەرەی PowerShell ٢
+  3) ئەپی ئایفۆن بەو لینکەوە بیلد کرابێت             -> بەشی ٣
+
+هەردوو پەنجەرەکە دەبێت کراوە بن و لاپتۆپەکەت نەخەوێت.
+هەر جارێک cloudflared دابخەیت و دووبارە بیکەیتەوە، لینکەکە دەگۆڕێت
+و دەبێت بەشی ٣ دووبارە بکەیتەوە.
+
+
+==========================================================================
+٢. هەموو جارێک: دەستپێکردنی باکەند و tunnel
+==========================================================================
+
+--- پەنجەرەی ١: باکەند ---
+
+  cd E:\Desktop\nn\skin_ai
+  .\backend\.venv\Scripts\Activate.ps1
+  $env:MOCK_API = "0"
+  python app.py
+
+  MOCK_API = "0"  -> سکانی ڕاستەقینە (ScanSkinAI) و ژمارەی بەکارهێنان دەخوات
+  MOCK_API = "1"  -> وەڵامی ساختە، بۆ تاقیکردنەوەی بێ بەکارهێنان
+
+  دوا دێڕ دەبێت ئەمە بێت و پەنجەرەکە کراوە بهێڵەرەوە:
+  Uvicorn running on http://0.0.0.0:8000
+
+  تێبینی: python app.py لە ڕیشەی پرۆژە (skin_ai) بەڕێوە ببە، نەک لەناو backend.
+  تێبینی: کلیلەکان لە .env دەخوێنرێنەوە. لێرە نایاننووسیت.
+  تێبینی: ئەوەی بە $env: لێرە دایدەنێیت بەسەر .env دا زاڵە.
+
+  پشکنین (لە پەنجەرەیەکی تر):
+  Invoke-RestMethod http://127.0.0.1:8000/health
+  -> دەبێت status = ok ببینیت. mock_mode = False واتە سکانی ڕاستەقینە.
+
+--- پەنجەرەی ٢: tunnel ---
+
+  پەنجەرەیەکی PowerShell ی نوێ بکەرەوە و بنووسە:
+
+  & "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://127.0.0.1:8000
+
+  (لە PowerShell پێویستە & لە پێشەوە بێت.)
+
+  دوای چەند چرکەیەک لینکێک دەردەکەوێت:
+  https://xxxx-xxxx-xxxx.trycloudflare.com
+  ئەو لینکە کۆپی بکە. پەنجەرەکە کراوە بهێڵەرەوە.
+
+--- تاقیکردنەوە لەسەر ئایفۆن ---
+
+  Safari بکەرەوە و بنووسە:
+  https://xxxx-xxxx-xxxx.trycloudflare.com/health
+  -> دەبێت {"status":"ok",...} ببینیت.
+
+
+==========================================================================
+٣. ئەگەر لینکی tunnel گۆڕا: ئەپی ئایفۆن نوێ بکەرەوە
+==========================================================================
+ئەپەکە لینکی باکەند لە کاتی بیلددا دەخوێنێتەوە، بۆیە ئەگەر لینکەکە گۆڕا
+دەبێت ئەپەکە دووبارە بیلد بکەیتەوە.
+
+  1) GitHub > SkinAI > Settings > Secrets and variables > Actions
+     > FIREBASE_CONFIG_JSON > Update
+     دێڕی AI_API_URL بگۆڕە بە لینکی نوێ (بێ / لە کۆتایی، لەناو فاریزەکان).
+     > Update secret
+
+  2) Actions > Build SkinAI iOS IPA > Run workflow > Run workflow
+     چاوەڕێ بکە تا سەوز دەبێت (نزیکەی ١٠ تا ٢٥ خولەک).
+
+  3) کلیک لەسەر run ی سەوز > خوارەوە > Artifacts > SkinAI-iOS-IPA دابگرە.
+     ZIP ـەکە بکەرەوە (Extract)، فایلی SkinAI.ipa دەردەکەوێت.
+
+  4) Sideloadly (بەشی ٤) بەکاربهێنە بۆ دانانی لەسەر ئایفۆن.
+
+شێوەی دروستی JSON ـی Secret (نرخەکان بە نرخی ڕاستەقینەی خۆت بگۆڕە،
+هەموو دێڕێک کۆمای هەیە جگە لە دوایین دێڕ):
+{
+  "FIREBASE_API_KEY": "AIzaSyC7UD7FsV5ET15GIIERzS22GFh7xc89lO8",
+  "FIREBASE_APP_ID": "1:423841896219:web:4c161ae61324fcee7265be",
+  "FIREBASE_ANDROID_API_KEY": "AIzaSyAx8HoBd_jvEjdoM848JroPY_9N2yoKXRQ",
+  "FIREBASE_ANDROID_APP_ID": "1:423841896219:android:781f972adbb054e27265be",
+  "FIREBASE_MESSAGING_SENDER_ID": "423841896219",
+  "FIREBASE_PROJECT_ID": "skinai-b0465",
+  "FIREBASE_AUTH_DOMAIN": "skinai-b0465.firebaseapp.com",
+  "FIREBASE_MEASUREMENT_ID": "G-Q99Z24BLD3",
+  "FIREBASE_IOS_API_KEY": "AIzaSyAgSGto4AixZB4ZMmUXhdROV7aPbitDxd8",
+  "FIREBASE_IOS_APP_ID": "1:423841896219:ios:3e7e9dbd87acb2857265be",
+  "FIREBASE_IOS_BUNDLE_ID": "com.alandluqman.skinai",
+  "AI_API_URL": "https://secret-vacation-autumn-grad.trycloudflare.com"//////////////////////////////
+}
+
+  یەک جار هەر کلیلێک بنووسە. FIREBASE_IOS_BUNDLE_ID دووبارە مەبێت.
+
+
+==========================================================================
+٤. Sideloadly: دانانی ئەپ لەسەر ئایفۆن
+==========================================================================
+یەکجار ئامادەکاری:
+  - iTunes و iCloud لە apple.com دابمەزرێنە (نەک Microsoft Store).
+  - Sideloadly لە sideloadly.io دابمەزرێنە.
+  - ئایفۆن: Settings > Privacy & Security > Developer Mode > چالاک بکە.
+
+هەر جارێک:
+  1) ئایفۆن بە کەیبڵ ببەستەوە و Trust This Computer بکە.
+  2) SkinAI.ipa بکێشە ناو Sideloadly.
+  3) Apple ID بنووسە (باشترە ئەکاونتێکی تایبەت بۆ ئەمە).
+  4) Advanced Options:
+       - Use automatic bundle ID  -> تیکەکەی لابدە
+       - خانەی Bundle ID: com.alandluqman.skinai
+       - دوگمەی "Dropping 0 of 1 plug-in" -> کلیکی لێ بکە و ویجێتەکە
+         (SkinAIWidget.appex) هەڵبژێرە، تا ببێتە "Dropping 1 of 1 plug-in"
+         (بێ ئەمە هەڵەی app extension placeholder دەدات)
+  5) Start > پاسوۆردی Apple ID > چاوەڕێ بکە تا Done.
+  6) ئایفۆن: Settings > General > VPN & Device Management
+     > Apple ID ـەکەت > Trust.
+  7) ئەپەکە بکەرەوە و بە ئیمەیڵ و پاسوۆرد بچۆ ژوورەوە.
+
+هەر ٧ ڕۆژ جارێک ئەپەکە دەوەستێت (Apple ID ی خۆڕایی): Sideloadly
+دووبارە بکەرەوە و هەمان IPA بە Start دابنێوە.
+
+لەسەر ئایفۆنی sideloaded کار ناکەن:
+  - Sign in with Apple (پێویستی بە Apple Developer Account هەیە)
+  - ویجێتی شاشەی سەرەکی
+  - Sign in with Google (ڕەنگە)
+  بۆیە بە ئیمەیڵ و پاسوۆرد بچۆ ژوورەوە.
+
+
+==========================================================================
+٥. تاقیکردنەوە لەسەر لاپتۆپ (بێ ئایفۆن)
+==========================================================================
+
+--- Chrome ---
+  پەنجەرەی ١ (باکەند) کراوە بێت، پاشان لە پەنجەرەیەکی تر:
+
+  Set-Location 'E:\Desktop\nn\skin_ai'
+  flutter pub get
+  flutter run -d chrome --dart-define-from-file=firebase.config.json --dart-define=AI_API_URL=http://127.0.0.1:8000
+
+--- ئیمولەیتەری Android ---
+  flutter devices
+  flutter run -d <emulator-id> --dart-define-from-file=firebase.config.json --dart-define=AI_API_URL=http://10.0.2.2:8000
+
+--- پشکنینی کۆد پێش push ---
+  flutter analyze
+  flutter test
+
+
+==========================================================================
+٦. نوێکردنەوەی کۆد لەسەر GitHub
+==========================================================================
+  cd E:\Desktop\nn\skin_ai
+  flutter analyze
+  git status
+  (دڵنیا ببە .env، service-account.json، firebase.config.json لە لیستەکەدا نین)
+  git add .
+  git commit -m "ناوی گۆڕانکارییەکە"
+  git push
+
+  ئەگەر git push ڕەتکرایەوە (non-fast-forward):
+  git pull --rebase origin main
+  git push
+
+  Push بۆ main خۆکارانە بیلدی iOS دەست پێدەکات.
+
+
+==========================================================================
+٧. ڕێکخستنی یەکجاری (ئەگەر کۆمپیوتەرێکی نوێت هەیە)
+==========================================================================
+
+--- 1) ڕێکخستنی باکەند ---
+  .\backend\.venv\Scripts\Activate.ps1
+  pip install -r requirements.txt
+  if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+  notepad .env
+
+--- 2) ناوەڕۆکی .env (نرخەکان بە نرخی خۆت بگۆڕە) ---
+  FIREBASE_PROJECT_ID=skinai-b0465
+  GOOGLE_APPLICATION_CREDENTIALS=E:\Desktop\nn\skin_ai\service-account.json
+  MOCK_API=1
+  SCANSKIN_API_KEY=<کلیلی ScanSkinAI>
+  EMAIL_BLOCK_HMAC_KEY=<هەمان نهێنی Firebase Functions>
+  SKINCHAT_AI_ENABLED=true
+  SKINCHAT_AI_API_KEY=<کلیلی Gemini>
+  SKINCHAT_AI_MODEL=gemini-3.8-flash
+  SKINAI_IMAGE_STORAGE_DIR=backend/uploads/skin_images
+
+  - GOOGLE_APPLICATION_CREDENTIALS دەبێت ڕێگای ڕاستی فایلی JSON بێت.
+  - بێ فاریزە و بێ بۆشایی دەوروبەری = .
+  - هەر گۆڕانکارییەک لە .env دوای وەستاندن (Ctrl+C) و دووبارە python app.py
+    کار دەکات.
+
+--- 3) کلیلی Firebase Admin (service-account.json) ---
+  Firebase Console > پرۆژەی skinai-b0465 > Project settings
+  > Service accounts > Generate new private key.
+  فایلەکە بخە شوێنی GOOGLE_APPLICATION_CREDENTIALS. بۆ GitHub مەینێرە.
+
+--- 4) firebase.config.json (بۆ تاقیکردنەوەی ناوخۆیی) ---
+  هەمان ناوەڕۆکی Secret ی FIREBASE_CONFIG_JSON (بەشی ٣)، بە لینکی
+  AI_API_URL ی ناوخۆیی یان بێ ئەو دێڕە. ئەم فایلە لە .gitignore دایە.
+
+--- 5) ئەپی iOS لە Firebase ---
+  Firebase Console > Project settings > Your apps > Add app > iOS
+  Bundle ID: com.alandluqman.skinai
+  GoogleService-Info.plist دابگرە: API_KEY و GOOGLE_APP_ID بخەرە ناو
+  Secret ی GitHub (FIREBASE_IOS_API_KEY و FIREBASE_IOS_APP_ID).
+  Authentication > Sign-in method > Email/Password چالاک بکە.
+
+--- 6) cloudflared ---
+  winget install Cloudflare.cloudflared
+  شوێنی فایلەکە: C:\Program Files (x86)\cloudflared\cloudflared.exe
+
+
+==========================================================================
+٨. چارەسەری هەڵەکان
+==========================================================================
+
+"The provider took too long to respond" لەسەر ئایفۆن
+  -> ئایفۆن ناگات بە باکەند. بپشکنە: باکەند کراوە؟ cloudflared کراوە؟
+     لینکەکە لە Safari /health دەکاتەوە؟ لینکەکە هەمان ئەوەیە کە لە
+     Secret ی GitHub بوو کاتی بیلد؟ ئەگەر نا، بەشی ٣ بکە.
+
+"Firebase options were not passed to this run"
+  -> بیلدەکە بێ firebase.config.json کراوە. دڵنیا ببە Secret ی
+     FIREBASE_CONFIG_JSON هەیە و workflow ـەکە دروستی دەکات.
+
+"Register the iOS app in Firebase and pass FIREBASE_IOS_API_KEY..."
+  -> FIREBASE_IOS_API_KEY، FIREBASE_IOS_APP_ID، FIREBASE_IOS_BUNDLE_ID
+     لە Secret دا نین. بەشی ٧ (5) و بەشی ٣.
+
+"invalid_grant: Invalid JWT Signature" لە لۆگی باکەند
+  -> کلیلی service-account.json کۆنە یان سڕاوەتەوە. کلیلی نوێ دروست بکە
+     (بەشی ٧ (3)) و باکەند دووبارە دەست پێبکەرەوە.
+
+"Gemini rejected the request" لە SkinChat
+  -> 401: کلیلی Gemini دروست نییە، کلیلی نوێ لە aistudio.google.com
+     دروست بکە و لە .env دایبنێ.
+  -> 404: ناوی مۆدێل (SKINCHAT_AI_MODEL) دروست نییە یان بۆ ئەکاونتەکەت
+     بەردەست نییە. ئەو ناوەی Google خۆی پێشنیاری دەکات بنووسە.
+  -> دوای هەر گۆڕانێک باکەند دووبارە دەست پێبکەرەوە.
+
+"AI service is temporarily unavailable" لە Scan (HTTP 503)
+  -> SCANSKIN_API_KEY لە .env نییە یان دروست نییە. MOCK_API=0 بێت.
+
+python: can't open file '...\backend\app.py'
+  -> لە ناو backend بووی. cd E:\Desktop\nn\skin_ai بکە و دووبارە.
+
+set MOCK_API=1 لە PowerShell کار ناکات
+  -> لە PowerShell: $env:MOCK_API = "1"   (set ی CMD ـە)
+
+cloudflared is not recognized
+  -> ڕێگای تەواو بەکاربهێنە: & "C:\Program Files (x86)\cloudflared\cloudflared.exe" ...
+
+git push ڕەتکرایەوە (non-fast-forward)
+  -> git pull --rebase origin main  ئینجا  git push
+
+Sideloadly: "Failed to create app extension placeholder ... SkinAIWidget.appex"
+  -> دوگمەی "Dropping" بکە بە "1 of 1 plug-in" (بەشی ٤).
+
+ئایفۆن: Untrusted Developer
+  -> Settings > General > VPN & Device Management > Apple ID > Trust.
+
+ئایفۆن: Developer Mode Required
+  -> Settings > Privacy & Security > Developer Mode > چالاک > ڕیستارت.
+
+بیلدی GitHub شکستی هێنا
+  -> کلیک لەسەر run ـەکە > هەنگاوە سوورەکە بکەرەوە و هەڵەکە ببینە.
+     بیلد خولەکی macOS ی GitHub دەخوات (لە repository ی Private هەر
+     خولەکێک ١٠ ئەوەندە حیساب دەکرێت).
+
+
+==========================================================================
+٩. ئاگاداری ئەمنی
+==========================================================================
+  - .env، service-account.json، firebase.config.json هەرگیز نەچنە GitHub.
+  - هیچ کلیلێک لە چات، وێنە یان ئەم فایلەدا مەنووسە.
+  - ئەگەر کلیلێک بڵاو بوو، یەکسەر لە سەرچاوەکەی بیسڕەوە و نوێ دروست بکە:
+      ScanSkinAI، Gemini (aistudio.google.com)، Firebase service account.
+  - لینکی tunnel گشتییە: تا کار دەکات هەرکەسێک بیزانێت دەتوانێت بگاتە
+    باکەندەکەت (Firebase Auth داواکارییەکان دەپارێزێت). کاتێک
+    بەکارنایەیت cloudflared دابخە.
+  - بۆ بەکارهێنانی هەمیشەیی، باکەند لەسەر سێرڤەرێک (Render، Railway، VPS)
+    دابنێ تا لینکەکە نەگۆڕێت و لاپتۆپەکەت پێویست نەبێت.
+
+
+
+
+
+
+
+    
 Open two PowerShell windows. Run these commands from the repository root:
 E:\Desktop\nn\skin_ai
 
@@ -135,3 +445,34 @@ $env:MOCK_API = "0"
 $env:SCANSKIN_API_KEY = "df3O9hDg5-q0OqTtwZpbYCUvJ_WAYuD2wQHHEBxTCbQ"
 python app.py
 
+
+
+$env:MOCK_API="0"
+cd E:\Desktop\nn\skin_ai\backend
+python app.py
+
+
+1
+
+cd E:\Desktop\nn\skin_ai
+.\backend\.venv\Scripts\Activate.ps1
+$env:MOCK_API = "0"
+python app.py
+
+
+
+
+2
+
+& "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://127.0.0.1:8000
+
+
+3
+https://xxxx-xxxx-xxxx.trycloudflare.com/health
+
+
+4
+GitHub > SkinAI > Settings > Secrets and variables > Actions > FIREBASE_CONFIG_JSON > Update
+
+
+set MOCK_API=0

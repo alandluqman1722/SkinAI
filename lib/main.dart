@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:skin_ai/image_picker_feedback.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_ai/design/app_design_system.dart';
 import 'package:skin_ai/auth/social_auth_service.dart';
@@ -30,6 +31,7 @@ import 'package:skin_ai/routines/routine_screens.dart';
 import 'package:skin_ai/notifications/notification_screens.dart';
 import 'package:skin_ai/skinchat/models/skinchat_models.dart';
 import 'package:skin_ai/skinchat/screens/skinchat_screen.dart';
+import 'package:skin_ai/doctors/doctor_screens.dart';
 import 'package:video_player/video_player.dart';
 import 'package:skin_ai/localization/app_localizations.dart';
 import 'package:skin_ai/localization/locale_helper.dart';
@@ -1156,12 +1158,12 @@ class AppController extends ChangeNotifier {
     SocialAuthService? socialAuthService,
     this.authSetupError,
   })  : _socialAuth = socialAuthService ??
-        (auth == null
-            ? null
-            : SocialAuthService(
-                auth,
-                webClientId: FirebaseClientConfig.googleSignInWebClientId,
-              )),
+            (auth == null
+                ? null
+                : SocialAuthService(
+                    auth,
+                    webClientId: FirebaseClientConfig.googleSignInWebClientId,
+                  )),
         _auth = authGateway ??
             (auth == null ? null : FirebaseEmailPasswordAuthGateway(auth)),
         _reminderService = reminderService ?? LocalReminderService(),
@@ -1192,9 +1194,7 @@ class AppController extends ChangeNotifier {
   Uint8List? _latestSkinChatImage;
   String? _latestSkinChatOwnerUid;
   SkinChatScanContext? get latestSkinChatScan =>
-      _latestSkinChatOwnerUid == currentUser?.uid
-          ? _latestSkinChatScan
-          : null;
+      _latestSkinChatOwnerUid == currentUser?.uid ? _latestSkinChatScan : null;
   Uint8List? latestSkinChatImageFor(SkinChatScanContext scan) =>
       latestSkinChatScan?.scanId == scan.scanId ? _latestSkinChatImage : null;
   List<ScanRecord> get scans {
@@ -1396,9 +1396,8 @@ class AppController extends ChangeNotifier {
     if (currentUser != null) {
       await refreshAccountScans();
     }
-    final scan = scans
-        .where((item) => item.analysisId?.isNotEmpty == true)
-        .firstOrNull;
+    final scan =
+        scans.where((item) => item.analysisId?.isNotEmpty == true).firstOrNull;
     if (scan == null) return null;
     return SkinChatScanContext(
       scanId: scan.analysisId!,
@@ -3481,7 +3480,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
           final platform = Theme.of(context).platform;
           final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
           return Center(
-        child: SingleChildScrollView(
+            child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsetsDirectional.fromSTEB(
                 AppSpacing.x6,
@@ -3489,7 +3488,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                 AppSpacing.x6,
                 bottomInset + AppSpacing.x6,
               ),
-          child: ConstrainedBox(
+              child: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: isExpanded ? AppBreakpoints.contentMaxWidth : 480,
                 ),
@@ -3504,390 +3503,390 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                       child: Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 480),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: Icon(
-                        a.isRtl
-                            ? Icons.arrow_forward_ios_rounded
-                            : Icons.arrow_back_ios_new_rounded,
-                        color: p.sub,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'SKIN AI',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                        color: p.text,
-                      ),
-                    ),
-                    const Spacer(),
-                    const QuickSettings(),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const Center(child: AppLogo(size: 84)),
-                const SizedBox(height: 22),
-                Text(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  IconButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    icon: Icon(
+                                      a.isRtl
+                                          ? Icons.arrow_forward_ios_rounded
+                                          : Icons.arrow_back_ios_new_rounded,
+                                      color: p.sub,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    'SKIN AI',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2,
+                                      color: p.text,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const QuickSettings(),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              const Center(child: AppLogo(size: 84)),
+                              const SizedBox(height: 22),
+                              Text(
                                 isLogin
                                     ? a.t('welcomeBack')
                                     : a.t('createAccount'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    color: p.text,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  isLogin ? a.t('signinSub') : a.t('signupSub'),
-                  textAlign: TextAlign.center,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w800,
+                                  color: p.text,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                isLogin ? a.t('signinSub') : a.t('signupSub'),
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                     color: p.sub, fontSize: 13, height: 1.5),
-                ),
-                const SizedBox(height: 26),
-                Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: p.panel.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: p.border),
-                  ),
-                  child: Row(
-                    children: [
-                      _tab(a.t('login'), isLogin, () {
-                        setState(() => isLogin = true);
-                      }),
-                      _tab(a.t('createAccount'), !isLogin, () {
-                        setState(() => isLogin = false);
-                      }),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: cardDecoration(p, radius: 24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
+                              ),
+                              const SizedBox(height: 26),
+                              Container(
+                                padding: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  color: p.panel.withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: p.border),
+                                ),
+                                child: Row(
+                                  children: [
+                                    _tab(a.t('login'), isLogin, () {
+                                      setState(() => isLogin = true);
+                                    }),
+                                    _tab(a.t('createAccount'), !isLogin, () {
+                                      setState(() => isLogin = false);
+                                    }),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 22),
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: cardDecoration(p, radius: 24),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
-                      children: [
-                        if (!isLogin) ...[
-                          _label(a.t('fullName'), p),
-                          const SizedBox(height: 8),
-                          _input(
-                            p: p,
-                            controller: _nameController,
-                            hint: a.t('fullNameHint'),
-                            icon: Icons.person_outline_rounded,
-                            validator: (value) {
+                                    children: [
+                                      if (!isLogin) ...[
+                                        _label(a.t('fullName'), p),
+                                        const SizedBox(height: 8),
+                                        _input(
+                                          p: p,
+                                          controller: _nameController,
+                                          hint: a.t('fullNameHint'),
+                                          icon: Icons.person_outline_rounded,
+                                          validator: (value) {
                                             if (value == null ||
                                                 value.trim().length < 2) {
-                                return a.t('errName');
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 17),
-                        ],
-                        _label(a.t('email'), p),
-                        const SizedBox(height: 8),
-                        _input(
-                          p: p,
-                          controller: _emailController,
-                          hint: a.t('emailHint'),
-                          icon: Icons.mail_outline_rounded,
+                                              return a.t('errName');
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        const SizedBox(height: 17),
+                                      ],
+                                      _label(a.t('email'), p),
+                                      const SizedBox(height: 8),
+                                      _input(
+                                        p: p,
+                                        controller: _emailController,
+                                        hint: a.t('emailHint'),
+                                        icon: Icons.mail_outline_rounded,
                                         keyboardType:
                                             TextInputType.emailAddress,
-                          validator: (value) {
-                            final email = value?.trim() ?? '';
+                                        validator: (value) {
+                                          final email = value?.trim() ?? '';
                                           if (!RegExp(
                                                   r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                .hasMatch(email)) {
-                              return a.t('errEmail');
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 17),
-                        _label(a.t('password'), p),
-                        const SizedBox(height: 8),
-                        _input(
-                          p: p,
-                          controller: _passwordController,
-                          hint: a.t('passwordHint'),
-                          icon: Icons.lock_outline_rounded,
-                          obscureText: hidePassword,
-                          suffix: IconButton(
+                                              .hasMatch(email)) {
+                                            return a.t('errEmail');
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      const SizedBox(height: 17),
+                                      _label(a.t('password'), p),
+                                      const SizedBox(height: 8),
+                                      _input(
+                                        p: p,
+                                        controller: _passwordController,
+                                        hint: a.t('passwordHint'),
+                                        icon: Icons.lock_outline_rounded,
+                                        obscureText: hidePassword,
+                                        suffix: IconButton(
                                           tooltip: hidePassword
                                               ? a.t('showPassword')
                                               : a.t('hidePassword'),
-                            onPressed: () {
+                                          onPressed: () {
                                             setState(() =>
                                                 hidePassword = !hidePassword);
-                            },
-                            icon: Icon(
-                              hidePassword
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: p.hint,
-                            ),
-                          ),
-                          validator: (value) {
+                                          },
+                                          icon: Icon(
+                                            hidePassword
+                                                ? Icons.visibility_off_outlined
+                                                : Icons.visibility_outlined,
+                                            color: p.hint,
+                                          ),
+                                        ),
+                                        validator: (value) {
                                           if (value == null ||
                                               value.length < 8) {
-                              return a.t('errPass');
-                            }
-                            return null;
-                          },
-                        ),
-                        if (!isLogin) ...[
-                          const SizedBox(height: 17),
-                          _label(a.t('confirm'), p),
-                          const SizedBox(height: 8),
-                          _input(
-                            p: p,
-                            controller: _confirmController,
-                            hint: a.t('confirmHint'),
-                            icon: Icons.verified_user_outlined,
-                            obscureText: hideConfirm,
-                            suffix: IconButton(
+                                            return a.t('errPass');
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      if (!isLogin) ...[
+                                        const SizedBox(height: 17),
+                                        _label(a.t('confirm'), p),
+                                        const SizedBox(height: 8),
+                                        _input(
+                                          p: p,
+                                          controller: _confirmController,
+                                          hint: a.t('confirmHint'),
+                                          icon: Icons.verified_user_outlined,
+                                          obscureText: hideConfirm,
+                                          suffix: IconButton(
                                             tooltip: hideConfirm
                                                 ? a.t('showPassword')
                                                 : a.t('hidePassword'),
-                              onPressed: () {
+                                            onPressed: () {
                                               setState(() =>
                                                   hideConfirm = !hideConfirm);
-                              },
-                              icon: Icon(
-                                hideConfirm
+                                            },
+                                            icon: Icon(
+                                              hideConfirm
                                                   ? Icons
                                                       .visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                color: p.hint,
-                              ),
-                            ),
-                            validator: (value) {
+                                                  : Icons.visibility_outlined,
+                                              color: p.hint,
+                                            ),
+                                          ),
+                                          validator: (value) {
                                             if (value !=
                                                 _passwordController.text) {
-                                return a.t('errMatch');
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          CheckboxListTile(
-                            value: acceptedTerms,
-                            onChanged: (value) {
+                                              return a.t('errMatch');
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        const SizedBox(height: 10),
+                                        CheckboxListTile(
+                                          value: acceptedTerms,
+                                          onChanged: (value) {
                                             setState(() =>
                                                 acceptedTerms = value ?? false);
-                            },
-                            contentPadding: EdgeInsets.zero,
+                                          },
+                                          contentPadding: EdgeInsets.zero,
                                           controlAffinity:
                                               ListTileControlAffinity.leading,
-                            activeColor: blue,
-                            checkColor: Colors.white,
-                            title: Text(
-                              a.t('terms'),
+                                          activeColor: blue,
+                                          checkColor: Colors.white,
+                                          title: Text(
+                                            a.t('terms'),
                                             style: TextStyle(
                                                 fontSize: 12, color: p.sub),
-                            ),
-                          ),
-                        ],
-                        if (isLogin)
-                          Align(
+                                          ),
+                                        ),
+                                      ],
+                                      if (isLogin)
+                                        Align(
                                           alignment:
                                               AlignmentDirectional.centerEnd,
-                            child: TextButton(
-                              onPressed: () => Navigator.push(
-                                context,
+                                          child: TextButton(
+                                            onPressed: () => Navigator.push(
+                                              context,
                                               fadeRoute(
                                                   const PasswordRecoveryScreen()),
-                              ),
-                              child: Text(
-                                a.t('forgot'),
+                                            ),
+                                            child: Text(
+                                              a.t('forgot'),
                                               style: TextStyle(
                                                   color: p.accent,
                                                   fontSize: 12),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 12),
-                        NeonButton(
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(height: 12),
+                                      NeonButton(
                                         text: isLogin
                                             ? a.t('signIn')
                                             : a.t('createAccount'),
-                          icon: isLogin
-                              ? Icons.login_rounded
-                              : Icons.person_add_alt_1_rounded,
-                          isLoading: busy,
+                                        icon: isLogin
+                                            ? Icons.login_rounded
+                                            : Icons.person_add_alt_1_rounded,
+                                        isLoading: busy,
                                         onTap: busy || _resendingVerification
                                             ? () {}
                                             : _submit,
-                        ),
-                        if (!kIsWeb &&
+                                      ),
+                                      if (!kIsWeb &&
                                           (platform == TargetPlatform.iOS ||
                                               platform ==
-                                    TargetPlatform.android)) ...[
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
+                                                  TargetPlatform.android)) ...[
+                                        const SizedBox(height: 18),
+                                        Row(
+                                          children: [
                                             Expanded(
                                                 child:
                                                     Divider(color: p.border)),
-                              Padding(
-                                padding:
+                                            Padding(
+                                              padding:
                                                   const EdgeInsets.symmetric(
                                                       horizontal: 12),
-                                child: Text(
-                                  a.t('continueWith'),
-                                  style: TextStyle(
-                                    color: p.hint,
-                                    fontSize: 11,
-                                    letterSpacing: 1.2,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
+                                              child: Text(
+                                                a.t('continueWith'),
+                                                style: TextStyle(
+                                                  color: p.hint,
+                                                  fontSize: 11,
+                                                  letterSpacing: 1.2,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
                                             Expanded(
                                                 child:
                                                     Divider(color: p.border)),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 14),
                                         if (platform == TargetPlatform.iOS &&
                                             _appleSignInEnabled) ...[
-                            _socialButton(
-                              label: a.t('signInApple'),
-                              loadingLabel: a.t('appleLoading'),
-                              isApple: true,
+                                          _socialButton(
+                                            label: a.t('signInApple'),
+                                            loadingLabel: a.t('appleLoading'),
+                                            isApple: true,
                                             isLoading:
                                                 _socialProvider == 'apple',
                                             onPressed: busy
                                                 ? null
                                                 : () => _socialSignIn('apple'),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          _socialButton(
-                            label: a.t('signInGoogle'),
-                            loadingLabel: a.t('googleLoading'),
-                            isApple: false,
+                                          ),
+                                          const SizedBox(height: 12),
+                                        ],
+                                        _socialButton(
+                                          label: a.t('signInGoogle'),
+                                          loadingLabel: a.t('googleLoading'),
+                                          isApple: false,
                                           isLoading:
                                               _socialProvider == 'google',
                                           onPressed: busy
                                               ? null
                                               : () => _socialSignIn('google'),
-                          ),
-                        ],
+                                        ),
+                                      ],
                                       if (_showVerificationResend &&
                                           isLogin) ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: p.input,
+                                        const SizedBox(height: 16),
+                                        Container(
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(
+                                            color: p.input,
                                             borderRadius:
                                                 BorderRadius.circular(14),
-                              border: Border.all(color: p.border),
-                            ),
-                            child: Column(
+                                            border: Border.all(color: p.border),
+                                          ),
+                                          child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.stretch,
-                              children: [
-                                if (_verificationStatus != null)
-                                  Text(
-                                    _authErrorText(
-                                      a,
-                                      _verificationStatus!,
-                                    ),
-                                    style: TextStyle(
-                                      color: p.sub,
-                                      fontSize: 12,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                TextButton.icon(
+                                            children: [
+                                              if (_verificationStatus != null)
+                                                Text(
+                                                  _authErrorText(
+                                                    a,
+                                                    _verificationStatus!,
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: p.sub,
+                                                    fontSize: 12,
+                                                    height: 1.4,
+                                                  ),
+                                                ),
+                                              TextButton.icon(
                                                 onPressed: busy ||
                                                         _checkingVerification
-                                      ? null
+                                                    ? null
                                                     : () =>
                                                         _checkEmailVerification(),
-                                  icon: _checkingVerification
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
+                                                icon: _checkingVerification
+                                                    ? const SizedBox(
+                                                        width: 16,
+                                                        height: 16,
                                                         child:
                                                             CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                      )
+                                                    : const Icon(
                                                         Icons
                                                             .mark_email_read_outlined,
-                                        ),
+                                                      ),
                                                 label: Text(
                                                     a.t('checkVerification')),
-                                ),
-                                TextButton.icon(
-                                  onPressed: busy ||
-                                          _resendingVerification ||
-                                          _resendWaitSeconds > 0
-                                      ? null
-                                      : _resendVerification,
-                                  icon: _resendingVerification
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
+                                              ),
+                                              TextButton.icon(
+                                                onPressed: busy ||
+                                                        _resendingVerification ||
+                                                        _resendWaitSeconds > 0
+                                                    ? null
+                                                    : _resendVerification,
+                                                icon: _resendingVerification
+                                                    ? const SizedBox(
+                                                        width: 16,
+                                                        height: 16,
                                                         child:
                                                             CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                      )
+                                                    : const Icon(
                                                         Icons
                                                             .mark_email_unread_outlined,
-                                        ),
-                                  label: Text(
-                                    _resendWaitSeconds > 0
+                                                      ),
+                                                label: Text(
+                                                  _resendWaitSeconds > 0
                                                       ? a
                                                           .t('resendCountdown')
                                                           .replaceAll(
-                                              '{seconds}',
-                                              '$_resendWaitSeconds',
-                                            )
+                                                            '{seconds}',
+                                                            '$_resendWaitSeconds',
+                                                          )
                                                       : a.t(
                                                           'resendVerification'),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                              ),
+                              const SizedBox(height: 22),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
                                   Icon(Icons.shield_outlined,
                                       size: 16, color: p.accent),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        a.t('privacyNote'),
-                        textAlign: TextAlign.center,
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      a.t('privacyNote'),
+                                      textAlign: TextAlign.center,
                                       style: TextStyle(
                                           fontSize: 11, color: p.hint),
                                     ),
@@ -3898,7 +3897,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-                      ),
+                    ),
                   ],
                 ),
               ),
@@ -3922,9 +3921,9 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
             color: blue.withValues(alpha: 0.18),
             blurRadius: 28,
             offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
+          ),
+        ],
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3990,12 +3989,12 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                           height: 1.4,
                         ),
                       ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-              ],
-            ),
-        ),
         ],
       ),
     );
@@ -4011,31 +4010,31 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.medium),
           child: InkWell(
-        onTap: onTap,
+            onTap: onTap,
             borderRadius: BorderRadius.circular(AppRadius.medium),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
               constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.x3),
-          decoration: BoxDecoration(
-            gradient: selected
-                ? const LinearGradient(
-                    colors: [Color(0xFF087CFF), Color(0xFF4640B9)],
-                  )
-                : null,
+              decoration: BoxDecoration(
+                gradient: selected
+                    ? const LinearGradient(
+                        colors: [Color(0xFF087CFF), Color(0xFF4640B9)],
+                      )
+                    : null,
                 borderRadius: BorderRadius.circular(AppRadius.medium),
-          ),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: selected ? Colors.white : p.hint,
+              ),
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : p.hint,
+                ),
+              ),
             ),
           ),
-        ),
-      ),
         ),
       ),
     );
@@ -4236,10 +4235,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   RoutineController? _observedRoutineController;
   StreamSubscription<Uri>? _widgetLinkSubscription;
 
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _durationController = TextEditingController();
-  final TextEditingController _symptomsController = TextEditingController();
-  final TextEditingController _changeController = TextEditingController();
   Uint8List? picked;
   String pickedName = 'scan.jpg';
   bool analyzing = false;
@@ -4250,10 +4245,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? scanError;
   DateTime? scannedAt;
   String? selectedBodyRegion;
-  String? selectedBodyPart;
-  String? selectedBodySubregion;
-  String? selectedBodySide;
   String? selectedConcern;
+  String? _selectedDuration;
+  final Set<String> _selectedSymptoms = {};
+  String? _selectedChange;
   bool bodySelectionConfirmed = false;
   bool _sensitivePhotoConsent = false;
   bool _accountHistoryConsent = false;
@@ -4264,15 +4259,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int? _accountHistoryErrorStatus;
   bool _medicalImageStorageCheckFailed = false;
 
-  bool get _isGeneralConcern => selectedConcern == 'general_concern';
-
   String _scanConcernLabel(AppController a, String? concernId) {
     if (concernId == 'general_concern') return a.t('generalSkinConcern');
-    return _scanConcerns
-            .where((item) => item.$1 == concernId)
-            .firstOrNull
-            ?.$2 ??
-        'Concern not selected';
+    if (concernId == null) return '';
+    final key = 'concern_$concernId';
+    return AppLocalizations.keysFor(a.lang.locale.languageCode, 'app')
+            .contains(key)
+        ? a.t(key)
+        : a.t('region_unsure');
   }
 
   String _displayScanLabel(AppController a, String code) {
@@ -4281,20 +4275,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .contains(key)
         ? a.t(key)
         : code;
-  }
-
-  void _selectGeneralConcern() {
-    setState(() {
-      selectedConcern = 'general_concern';
-      bodySelectionConfirmed = true;
-      _sensitivePhotoConsent = false;
-      _accountHistoryConsent = false;
-      _originalImageConsent = false;
-      picked = null;
-      result = null;
-      scanError = null;
-      scannedAt = null;
-    });
   }
 
   @override
@@ -4317,10 +4297,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _widgetLinkSubscription?.cancel();
-    _locationController.dispose();
-    _durationController.dispose();
-    _symptomsController.dispose();
-    _changeController.dispose();
     super.dispose();
   }
 
@@ -4468,8 +4444,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         scanError = null;
         scannedAt = null;
       });
-    } catch (_) {
-      if (mounted) showNotice(context, a.t('errPick'));
+    } on Object catch (error) {
+      if (mounted) {
+        showImagePickerFailure(
+          context,
+          error,
+          translate: a.t,
+        );
+      }
     }
   }
 
@@ -4540,10 +4522,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final concernLabel = selectedConcern == null
           ? null
           : _scanConcernLabel(a, selectedConcern);
+      final symptomLabels = _selectedSymptoms
+          .map((symptom) => a.t('symptom${_capitalize(symptom)}'))
+          .toList();
       final details = [
         if (concernLabel != null) '${a.t('concernLabel')}: $concernLabel',
-        if (_symptomsController.text.trim().isNotEmpty)
-          _symptomsController.text.trim(),
+        ...symptomLabels,
       ].join('\n');
       final r = await SkinApi.analyze(
         a.serverUrl,
@@ -4551,10 +4535,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         pickedName,
         idToken: idToken,
         saveHistory: saveToAccount,
-        location: _locationController.text,
-        duration: _durationController.text,
+        location: _selectedAreaLabel(a),
+        duration: _selectedDuration == null ? '' : a.t(_selectedDuration!),
         details: details,
-        changeOverTime: _changeController.text,
+        changeOverTime: _selectedChange == null ? '' : a.t(_selectedChange!),
         onUploadProgress: (sentBytes, totalBytes) {
           if (!mounted) return;
           final progress = totalBytes == 0 ? 0.0 : sentBytes / totalBytes;
@@ -4572,6 +4556,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       String? persistenceError;
       var originalImageStored = false;
+      final bodyRegion = bodyRegionOptions
+          .where((region) => region.id == selectedBodyRegion)
+          .firstOrNull;
       final record = ScanRecord(
         cls: r.cls,
         conf: r.confidence,
@@ -4579,25 +4566,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ts: r.timestamp.millisecondsSinceEpoch,
         analysisId: r.scanId,
         summary: r.summary,
-        bodyPart: selectedBodyRegion == null
-            ? a.t('generalSkinConcern')
-            : bodyRegionOptions
-                .firstWhere((region) => region.id == selectedBodyRegion)
-                .group,
-        bodySubregion: selectedBodyRegion == null
-            ? null
-            : bodyRegionOptions
-                .firstWhere((region) => region.id == selectedBodyRegion)
-                .label,
-        bodySide: selectedBodySide,
+        bodyPart: bodyRegion?.bodyPart ??
+            selectedBodyRegion ??
+            a.t('generalSkinConcern'),
+        bodySubregion:
+            selectedBodyRegion == null || bodyRegion?.id == bodyRegion?.bodyPart
+                ? null
+                : selectedBodyRegion,
         concernType: _scanConcernLabel(a, selectedConcern),
         userId: a.currentUser?.uid,
-        bodyLocation: _locationController.text.trim().isEmpty
-            ? [
-                if (selectedBodySide != null) selectedBodySide!,
-                if (selectedBodySubregion != null) selectedBodySubregion!,
-              ].join(' ')
-            : _locationController.text.trim(),
+        bodyLocation: selectedBodyRegion == null ? '' : _selectedAreaLabel(a),
         notes: details.isEmpty ? null : details,
         accountRecord: saveToAccount,
       );
@@ -4873,8 +4851,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         children: [
           if (showLogo) ...[
-          const AppLogo(size: 36),
-          const SizedBox(width: 12),
+            const AppLogo(size: 36),
+            const SizedBox(width: 12),
           ],
           Expanded(
             child: Text(
@@ -4998,42 +4976,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _dashboardMainPanel(AppController a, Pal p) {
     return Column(
-        children: [
+      children: [
         _topBar(a, p,
             showLogo: AppBreakpoints.of(context) != AppViewport.expanded),
-          Expanded(
+        Expanded(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: AppBreakpoints.contentMaxWidth,
               ),
-            child: IndexedStack(
-              index: selectedIndex,
-              children: [
-                _home(a, p),
-                _history(a, p),
-                _scanner(a, p),
-                RoutineDashboardScreen(
-                  controller: a.routineController,
-                  language: a.lang.name,
-                  accentColor: p.accent,
-                  onOpenWidgets: a.routineController.supportsWidgetPinning
-                      ? () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => WidgetGalleryScreen(
-                                controller: a.routineController,
-                                language: a.lang.name,
+              child: IndexedStack(
+                index: selectedIndex,
+                children: [
+                  _home(a, p),
+                  _history(a, p),
+                  _scanner(a, p),
+                  RoutineDashboardScreen(
+                    controller: a.routineController,
+                    language: a.lang.name,
+                    accentColor: p.accent,
+                    onOpenWidgets: a.routineController.supportsWidgetPinning
+                        ? () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => WidgetGalleryScreen(
+                                  controller: a.routineController,
+                                  language: a.lang.name,
+                                ),
                               ),
-                            ),
-                          );
-                        }
-                      : null,
-                ),
-                SettingsScreen(onLogout: _confirmSignOut),
-              ],
+                            );
+                          }
+                        : null,
+                  ),
+                  SettingsScreen(onLogout: _confirmSignOut),
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ],
@@ -5062,17 +5040,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _bottomNavigation(AppController a, Pal p) {
     return NavigationBar(
-            backgroundColor: p.nav,
-            indicatorColor: p.accent.withValues(alpha: 0.18),
-            selectedIndex: selectedIndex,
+      backgroundColor: p.nav,
+      indicatorColor: p.accent.withValues(alpha: 0.18),
+      selectedIndex: selectedIndex,
       onDestinationSelected: _selectTab,
-            destinations: [
+      destinations: [
         for (final (icon, selectedIcon, label) in _navigationItems(a))
-              NavigationDestination(
+          NavigationDestination(
             icon: Icon(icon),
             selectedIcon: Icon(selectedIcon, color: p.accent),
             label: label,
-              ),
+          ),
       ],
     );
   }
@@ -5092,7 +5070,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: Icon(icon),
               selectedIcon: Icon(selectedIcon, color: p.accent),
               label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-              ),
+            ),
         ],
       ),
     );
@@ -5169,11 +5147,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     fontWeight: selected
                                         ? FontWeight.w700
                                         : FontWeight.w500,
-              ),
-              ),
-              ),
-            ],
-          ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -5210,19 +5188,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ];
         final isWide = constraints.maxWidth >= 900;
 
-    return ListView(
+        return ListView(
           padding: const EdgeInsets.all(AppSpacing.x6),
-      children: [
-        Text(
-          '${a.t('hello')} ${a.userName} 👋',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            color: p.text,
-          ),
-        ),
+          children: [
+            Text(
+              '${a.t('hello')} ${a.userName} 👋',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: p.text,
+              ),
+            ),
             const SizedBox(height: AppSpacing.x2),
-        Text(a.t('homeSub'), style: TextStyle(color: p.sub)),
+            Text(a.t('homeSub'), style: TextStyle(color: p.sub)),
             const SizedBox(height: AppSpacing.x6),
             if (isWide)
               Row(
@@ -5265,52 +5243,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
         gradient: LinearGradient(colors: p.hero),
         border: Border.all(color: cyan.withValues(alpha: 0.25)),
         boxShadow: [
-              BoxShadow(
-                color: blue.withValues(alpha: 0.22),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
+          BoxShadow(
+            color: blue.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const Icon(
             Icons.face_retouching_natural,
             color: Colors.white,
             size: 42,
           ),
           const SizedBox(height: AppSpacing.x4),
-              Text(
-                a.t('aiAnalysis'),
-                style: const TextStyle(
-                  fontSize: 23,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+          Text(
+            a.t('aiAnalysis'),
+            style: const TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
           const SizedBox(height: AppSpacing.x2),
-              Text(
-                a.t('aiAnalysisDesc'),
-                style: const TextStyle(color: Colors.white70, height: 1.6),
-              ),
+          Text(
+            a.t('aiAnalysisDesc'),
+            style: const TextStyle(color: Colors.white70, height: 1.6),
+          ),
           const SizedBox(height: AppSpacing.x6),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => _selectTab(2),
-                  icon: const Icon(Icons.center_focus_strong),
-                  label: Text(a.t('scanSkin')),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF0B3D91),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => _selectTab(2),
+              icon: const Icon(Icons.center_focus_strong),
+              label: Text(a.t('scanSkin')),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF0B3D91),
                 padding: const EdgeInsets.all(AppSpacing.x4),
                 minimumSize: const Size.fromHeight(48),
-                  ),
-                ),
               ),
-            ],
+            ),
           ),
+        ],
+      ),
     );
   }
 
@@ -5343,64 +5321,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _openDoctors(AppController a) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DoctorDirectoryScreen(
+          baseUrl: a.serverUrl,
+          idTokenProvider: a.getFirebaseIdToken,
+        ),
+      ),
+    );
+  }
+
   Widget _homeChatCard(AppController a) {
     return Material(
-          color: Colors.transparent,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.extraLarge),
-          child: InkWell(
+      child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.extraLarge),
-            onTap: () => _openSkinChat(a),
-            child: Ink(
+        onTap: () => _openSkinChat(a),
+        child: Ink(
           padding: const EdgeInsets.all(AppSpacing.x4),
-              decoration: BoxDecoration(
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.extraLarge),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF112B49), Color(0xFF20234D)],
+            gradient: const LinearGradient(
+              colors: [Color(0xFF112B49), Color(0xFF20234D)],
+            ),
+            border: Border.all(color: cyan.withValues(alpha: .28)),
+          ),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: Color(0xFF12C7E8),
+                child: Icon(
+                  Icons.health_and_safety_outlined,
+                  color: Color(0xFF06202B),
                 ),
-                border: Border.all(color: cyan.withValues(alpha: .28)),
               ),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    backgroundColor: Color(0xFF12C7E8),
-                    child: Icon(
-                      Icons.health_and_safety_outlined,
-                      color: Color(0xFF06202B),
-                    ),
-                  ),
               const SizedBox(width: AppSpacing.x3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'SkinChat AI',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                    const SizedBox(height: AppSpacing.x1),
-                        Text(
-                      a.t('skinChatDescription'),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'SkinChat AI',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: AppSpacing.x1),
+                    Text(
+                      a.t('skinChatDescription'),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Icon(
                 Icons.arrow_forward_rounded,
                 color: Colors.white,
                 textDirection: a.isRtl ? TextDirection.rtl : TextDirection.ltr,
               ),
             ],
-            ),
           ),
         ),
+      ),
     );
   }
 
@@ -5460,6 +5449,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+        const SizedBox(height: AppSpacing.x3),
+        SizedBox(
+          width: double.infinity,
+          child: _featureCard(
+            p,
+            Icons.medical_services_outlined,
+            a.t('findDermatologist'),
+            a.t('findDermatologistDesc'),
+            () => _openDoctors(a),
+          ),
+        ),
       ],
     );
   }
@@ -5507,11 +5507,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             _displayScanLabel(a, scan.cls),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: p.text,
+                            style: TextStyle(
+                              color: p.text,
                               fontWeight: FontWeight.w700,
-          ),
-        ),
+                            ),
+                          ),
                         ),
                         Text(
                           '${scan.conf.toStringAsFixed(0)}%',
@@ -5547,19 +5547,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.x4),
       decoration: cardDecoration(p, radius: AppRadius.large),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.health_and_safety, color: p.accent),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.health_and_safety, color: p.accent),
           const SizedBox(width: AppSpacing.x3),
-              Expanded(
-                child: Text(
-                  a.t('disclaimer'),
-                  style: TextStyle(color: p.sub, height: 1.6, fontSize: 12),
-                ),
-              ),
-            ],
+          Expanded(
+            child: Text(
+              a.t('disclaimer'),
+              style: TextStyle(color: p.sub, height: 1.6, fontSize: 12),
+            ),
           ),
+        ],
+      ),
     );
   }
 
@@ -5570,7 +5570,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         fontSize: 19,
         fontWeight: FontWeight.bold,
         color: p.text,
-        ),
+      ),
     );
   }
 
@@ -5681,113 +5681,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   static const _scanConcerns = <(String, String, IconData)>[
-    (
-      'general_concern',
-      'General skin concern',
-      Icons.health_and_safety_outlined
-    ),
-    ('acne', 'Acne / Pimples', Icons.circle_outlined),
-    ('redness', 'Redness', Icons.local_fire_department_outlined),
-    ('rash', 'Rash', Icons.grain_rounded),
-    ('dryness', 'Dryness', Icons.water_drop_outlined),
-    ('dark_spots', 'Dark spots', Icons.blur_circular_outlined),
-    ('itching', 'Itching', Icons.back_hand_outlined),
-    ('swelling', 'Swelling', Icons.healing_outlined),
-    ('mole_lesion', 'Mole or skin lesion', Icons.circle_outlined),
-    ('irritation', 'Irritation', Icons.spa_outlined),
-    ('other', 'Other', Icons.more_horiz_rounded),
-    ('unsure', 'Not sure', Icons.help_outline_rounded),
+    ('general_concern', 'generalSkinConcern', Icons.health_and_safety_outlined),
+    ('acne', 'concern_acne', Icons.circle_outlined),
+    ('redness', 'concern_redness', Icons.local_fire_department_outlined),
+    ('rash', 'concern_rash', Icons.grain_rounded),
+    ('dryness', 'concern_dryness', Icons.water_drop_outlined),
+    ('dark_spots', 'concern_dark_spots', Icons.blur_circular_outlined),
+    ('itching', 'concern_itching', Icons.back_hand_outlined),
+    ('swelling', 'concern_swelling', Icons.healing_outlined),
+    ('mole_lesion', 'concern_mole_lesion', Icons.circle_outlined),
+    ('irritation', 'concern_irritation', Icons.spa_outlined),
+    ('other', 'concern_other', Icons.more_horiz_rounded),
+    ('unsure', 'concern_unsure', Icons.help_outline_rounded),
   ];
 
-  Widget _generalConcernCategoryCard(AppController a, Pal p) {
-    const warning = Color(0xFFF59E0B);
-    return Container(
-      decoration: BoxDecoration(
-        color: p.panel,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: warning.withValues(alpha: 0.6)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: _selectGeneralConcern,
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.health_and_safety_outlined,
-                      color: warning,
-                      size: 23,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        a.t('generalSkinConcern'),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: p.text,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 7),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: warning.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        a.t('screeningTool'),
-                        style: const TextStyle(
-                          color: warning,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        a.t('generalConcernSubtitle'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: p.sub,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _bodySelectionScreen(AppController a, Pal p) {
-    final selectedRegion = bodyRegionOptions
-        .where((region) => region.id == selectedBodyRegion)
-        .firstOrNull;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
@@ -5804,227 +5712,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
           a.t('bodyConcernPrompt'),
           style: TextStyle(color: p.sub, height: 1.5),
         ),
-        const SizedBox(height: 16),
-        BodyRegionSelector(
-          selectedRegion: selectedBodyRegion,
-          accentColor: p.accent,
-          panelColor: p.panel,
-          textColor: p.text,
-          mutedColor: p.sub,
-          borderColor: p.border,
-          localize: a.t,
-          onSelected: (region) {
-            setState(() {
-              selectedBodyRegion = region.id;
-              _locationController.text = region.label;
-              selectedBodyPart = region.bodyPart;
-              selectedBodySubregion =
-                  region.id == region.bodyPart ? null : region.id;
-              selectedBodySide = region.id.startsWith('left_')
-                  ? 'left'
-                  : region.id.startsWith('right_')
-                      ? 'right'
-                      : null;
-              bodySelectionConfirmed = false;
-              _sensitivePhotoConsent = false;
-              picked = null;
-              result = null;
-              scanError = null;
-              scannedAt = null;
-            });
-          },
-          featuredCategoryCard: _generalConcernCategoryCard(a, p),
-          onCleared: () {
-            setState(() {
-              selectedBodyRegion = null;
-              selectedBodyPart = null;
-              selectedBodySubregion = null;
-              selectedBodySide = null;
-              _locationController.clear();
-              bodySelectionConfirmed = false;
-              _sensitivePhotoConsent = false;
-              picked = null;
-              result = null;
-              scanError = null;
-              scannedAt = null;
-            });
-          },
+        const SizedBox(height: 18),
+        Text(a.t('scanArea'),
+            style: TextStyle(color: p.text, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final (id, icon) in _scanAreas)
+              ChoiceChip(
+                avatar: Icon(icon, size: 18),
+                label: Text(a.t('region_$id')),
+                selected: selectedBodyRegion == id,
+                onSelected: (selected) => setState(() {
+                  selectedBodyRegion = selected ? id : null;
+                  picked = null;
+                  result = null;
+                  scanError = null;
+                  scannedAt = null;
+                }),
+              ),
+          ],
         ),
-        Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: TextButton.icon(
-            onPressed: () => setState(() {
-              selectedBodyRegion = null;
-              selectedBodyPart = null;
-              selectedBodySubregion = null;
-              selectedBodySide = null;
-              selectedConcern = null;
-              _locationController.clear();
-              bodySelectionConfirmed = true;
-            }),
-            icon: const Icon(Icons.skip_next_rounded),
-            label: Text(a.t('continueWithoutLocation')),
-          ),
+        const SizedBox(height: 18),
+        Text(
+          a.t('whatWouldYouLikeToExamine'),
+          style: TextStyle(color: p.text, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final (id, key, icon) in _scanConcerns)
+              FilterChip(
+                avatar: Icon(icon, size: 18),
+                label: Text(a.t(key)),
+                selected: selectedConcern == id,
+                onSelected: (selected) => setState(() {
+                  selectedConcern = selected ? id : null;
+                  result = null;
+                  scanError = null;
+                  scannedAt = null;
+                }),
+              ),
+          ],
         ),
         _medicalDisclaimerCard(a, p),
-        if (selectedRegion != null) ...[
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: p.accent.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: p.accent.withValues(alpha: 0.25)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle_outline_rounded, color: p.accent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    a.t(
-                      'selectedArea',
-                      arguments: {'area': selectedRegion.label},
-                    ),
-                    style: TextStyle(
-                      color: p.text,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            a.t('whatWouldYouLikeToExamine'),
-            style: TextStyle(
-              color: p.text,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth < 300 ? 1 : 2;
-              return GridView.builder(
-                itemCount: _scanConcerns.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  mainAxisExtent: crossAxisCount == 1 ? 76 : 88,
-                ),
-                itemBuilder: (context, index) {
-                  final (id, label, icon) = _scanConcerns[index];
-                  final selected = selectedConcern == id;
-                  final title = id == 'general_concern'
-                      ? a.t('generalSkinConcern')
-                      : label;
-                  return Material(
-                    color: p.panel,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () {
-                        if (id == 'general_concern') {
-                          _selectGeneralConcern();
-                          return;
-                        }
-                        setState(() {
-                          selectedConcern = id;
-                          bodySelectionConfirmed = false;
-                          picked = null;
-                          result = null;
-                          scanError = null;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? p.accent.withValues(alpha: 0.1)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: selected ? p.accent : p.border,
-                            width: selected ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              icon,
-                              size: 20,
-                              color: selected ? p.accent : p.sub,
-                            ),
-                            const SizedBox(width: 9),
-                            Expanded(
-                              child: Text(
-                                title,
-                                maxLines: 4,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: selected ? p.accent : p.text,
-                                  fontSize: 12,
-                                  fontWeight: selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-          const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: p.accent.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: p.accent.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.privacy_tip_outlined, color: p.accent),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    a.t('beforePhotoUpload'),
-                    style: TextStyle(color: p.text, height: 1.45),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          NeonButton(
-            text: a.t('continue'),
-            icon: Icons.arrow_forward_rounded,
-            onTap: () => setState(() => bodySelectionConfirmed = true),
-          ),
-        ],
+        const SizedBox(height: 16),
+        NeonButton(
+          text: a.t('continue'),
+          icon: Icons.arrow_forward_rounded,
+          onTap: () => setState(() => bodySelectionConfirmed = true),
+        ),
       ],
     );
   }
 
+  static const _scanAreas = <(String, IconData)>[
+    ('face', Icons.face_outlined),
+    ('scalp', Icons.face_3_outlined),
+    ('neck', Icons.accessibility_new_outlined),
+    ('chest', Icons.accessibility_outlined),
+    ('back', Icons.airline_seat_flat_outlined),
+    ('arms', Icons.back_hand_outlined),
+    ('hands', Icons.pan_tool_outlined),
+    ('legs', Icons.directions_walk_outlined),
+    ('feet', Icons.directions_walk_outlined),
+    ('other', Icons.more_horiz_rounded),
+  ];
+
+  String _selectedAreaLabel(AppController a) =>
+      selectedBodyRegion == null ? '' : a.t('region_$selectedBodyRegion');
+
+  static String _capitalize(String value) =>
+      value.isEmpty ? value : '${value[0].toUpperCase()}${value.substring(1)}';
+
   Widget _selectedScanTaskCard(AppController a, Pal p) {
-    final region = bodyRegionOptions
-        .where((item) => item.id == selectedBodyRegion)
-        .firstOrNull;
     final concern =
         _scanConcerns.where((item) => item.$1 == selectedConcern).firstOrNull;
     return Container(
@@ -6037,7 +5802,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         children: [
           Icon(
-            _isGeneralConcern
+            selectedBodyRegion == null
                 ? Icons.health_and_safety_outlined
                 : Icons.location_on_outlined,
             color: p.accent,
@@ -6048,10 +5813,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  region?.label ??
-                      (_isGeneralConcern
-                          ? a.t('generalSkinConcern')
-                          : 'Body area not selected'),
+                  _selectedAreaLabel(a).isEmpty
+                      ? a.t('generalSkinConcern')
+                      : _selectedAreaLabel(a),
                   style: TextStyle(
                     color: p.text,
                     fontWeight: FontWeight.w700,
@@ -6059,7 +5823,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  _scanConcernLabel(a, concern?.$1),
+                  concern == null ? a.t('region_unsure') : a.t(concern.$2),
                   style: TextStyle(color: p.sub, fontSize: 12),
                 ),
               ],
@@ -6075,32 +5839,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _photoGuidanceCard(AppController a, Pal p) {
-    final group = bodyRegionOptions
-        .where((item) => item.id == selectedBodyRegion)
-        .firstOrNull
-        ?.group;
-    final guidance = switch (group) {
-      'Head and face' => const [
-          'Use natural, even lighting and a clear frontal or angled view.',
-          'Keep the area visible; avoid filters and unnecessary distance.',
-        ],
-      'Hands' => const [
-          'Capture the affected hand, fingers, palm, or nail clearly.',
-          'Keep the camera steady and avoid motion blur.',
-        ],
-      'Upper body — back' => const [
-          'Include the selected back area with sufficient lighting.',
-          'Keep the skin concern in focus and visible.',
-        ],
-      'Feet' => const [
-          'Frame the selected sole, heel, toe, nail, or top-of-foot area.',
-          'Use sufficient light and keep the camera steady.',
-        ],
-      _ => const [
-          'Use a clear, in-focus image with even lighting.',
-          'Avoid filters and include only the selected skin area.',
-        ],
-    };
+    final guidance = [a.t('photoClearGuidance'), a.t('photoAvoidFilters')];
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -6141,33 +5880,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _optionalTextField(
+  Widget _selectionChips(
     AppController a,
     Pal p,
-    TextEditingController controller,
-    String label, {
-    int maxLines = 1,
-  }) {
+    String title,
+    List<(String, String)> options,
+    String? selected,
+    ValueChanged<String?> onSelected,
+  ) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        style: TextStyle(color: p.text),
-        decoration: InputDecoration(
-          labelText: a.t(label),
-          labelStyle: TextStyle(color: p.sub),
-          filled: true,
-          fillColor: p.panel,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: p.border),
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: TextStyle(color: p.text, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final (value, labelKey) in options)
+                ChoiceChip(
+                  label: Text(a.t(labelKey)),
+                  selected: selected == value,
+                  onSelected: (isSelected) =>
+                      onSelected(isSelected ? value : null),
+                ),
+            ],
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: p.border),
+        ],
+      ),
+    );
+  }
+
+  Widget _symptomChips(AppController a, Pal p) {
+    const symptoms = <(String, String)>[
+      ('itching', 'symptomItching'),
+      ('redness', 'symptomRedness'),
+      ('pain', 'symptomPain'),
+      ('swelling', 'symptomSwelling'),
+      ('bleeding', 'symptomBleeding'),
+      ('colorChange', 'symptomColorChange'),
+      ('none', 'symptomNone'),
+      ('notSure', 'symptomNotSure'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(a.t('scanSymptoms'),
+              style: TextStyle(color: p.text, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final (id, key) in symptoms)
+                FilterChip(
+                  label: Text(a.t(key)),
+                  selected: _selectedSymptoms.contains(id),
+                  onSelected: (selected) => setState(() {
+                    if (id == 'none' || id == 'notSure') {
+                      _selectedSymptoms.clear();
+                      if (selected) _selectedSymptoms.add(id);
+                    } else {
+                      _selectedSymptoms
+                        ..remove('none')
+                        ..remove('notSure');
+                      selected
+                          ? _selectedSymptoms.add(id)
+                          : _selectedSymptoms.remove(id);
+                    }
+                  }),
+                ),
+            ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -6188,7 +5978,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              a.t('disclaimer'),
+              a.t('scannerDisclaimer'),
               style: TextStyle(color: p.sub, height: 1.5, fontSize: 12),
             ),
           ),
@@ -6205,240 +5995,253 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final r = result;
     final scanDetails = <Widget>[
       const SizedBox(height: AppSpacing.x3),
-        Text(
-          a.t('scanner'),
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: p.text,
-          ),
+      Text(
+        a.t('scanner'),
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: p.text,
         ),
+      ),
       const SizedBox(height: AppSpacing.x2),
-        Text(a.t('scannerDesc'), style: TextStyle(color: p.sub, height: 1.6)),
+      Text(a.t('scannerDesc'), style: TextStyle(color: p.sub, height: 1.6)),
       const SizedBox(height: AppSpacing.x3),
-        _selectedScanTaskCard(a, p),
+      _selectedScanTaskCard(a, p),
       const SizedBox(height: AppSpacing.x3),
-        _photoGuidanceCard(a, p),
-      _optionalTextField(a, p, _locationController, 'scanLocation'),
-      _optionalTextField(a, p, _durationController, 'symptomsDuration'),
-        _optionalTextField(
-          a,
-          p,
-          _symptomsController,
-          'symptomsDetails',
-          maxLines: 3,
-        ),
-        _optionalTextField(
-          a,
-          p,
-          _changeController,
-          'symptomsChange',
-          maxLines: 2,
-        ),
-        _medicalDisclaimerCard(a, p),
+      _photoGuidanceCard(a, p),
+      _selectionChips(
+        a,
+        p,
+        a.t('scanDuration'),
+        const [
+          ('durationUnderWeek', 'durationUnderWeek'),
+          ('durationOneToFourWeeks', 'durationOneToFourWeeks'),
+          ('durationOneToSixMonths', 'durationOneToSixMonths'),
+          ('durationOverSixMonths', 'durationOverSixMonths'),
+          ('durationNotSure', 'durationNotSure'),
+        ],
+        _selectedDuration,
+        (value) => setState(() => _selectedDuration = value),
+      ),
+      _symptomChips(a, p),
+      _selectionChips(
+        a,
+        p,
+        a.t('scanChange'),
+        const [
+          ('changeBetter', 'changeBetter'),
+          ('changeWorse', 'changeWorse'),
+          ('changeNoChange', 'changeNoChange'),
+          ('changeAppearance', 'changeAppearance'),
+          ('changeNotSure', 'changeNotSure'),
+        ],
+        _selectedChange,
+        (value) => setState(() => _selectedChange = value),
+      ),
+      _medicalDisclaimerCard(a, p),
     ];
     final scanInput = <Widget>[
       const SizedBox(height: AppSpacing.x3),
-        Container(
-          height: 240,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: p.panel,
+      Container(
+        height: 240,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: p.panel,
           borderRadius: BorderRadius.circular(AppRadius.extraLarge),
-            border: Border.all(color: p.accent.withValues(alpha: 0.35)),
-          ),
-          child: picked != null
-              ? Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.memory(picked!, fit: BoxFit.cover),
-                    if (!analyzing)
-                      Align(
-                        alignment: AlignmentDirectional.topEnd,
-                        child: IconButton.filledTonal(
-                          tooltip: a.t('removeImage'),
-                          onPressed: () => setState(() {
-                            picked = null;
-                            _accountHistoryConsent = false;
-                            _originalImageConsent = false;
-                            result = null;
-                            scanError = null;
-                            scannedAt = null;
-                          }),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ),
-                    if (analyzing)
-                      Container(
-                        color: Colors.black54,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (_uploadingImage)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 48),
-                                child: LinearProgressIndicator(
-                                  value: _uploadProgress,
-                                ),
-                              )
-                            else
-                              const CircularProgressIndicator(),
-                          const SizedBox(height: AppSpacing.x3),
-                            Text(
-                              _uploadingImage
-                                  ? '${a.t('uploadingImageProgress')} ${(_uploadProgress * 100).round()}%'
-                                  : a.t('analyzing'),
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_a_photo_outlined, size: 65, color: p.accent),
-                  const SizedBox(height: AppSpacing.x4),
-                    Text(
-                      a.t('pickPrompt'),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: p.text,
+          border: Border.all(color: p.accent.withValues(alpha: 0.35)),
+        ),
+        child: picked != null
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.memory(picked!, fit: BoxFit.cover),
+                  if (!analyzing)
+                    Align(
+                      alignment: AlignmentDirectional.topEnd,
+                      child: IconButton.filledTonal(
+                        tooltip: a.t('removeImage'),
+                        onPressed: () => setState(() {
+                          picked = null;
+                          _accountHistoryConsent = false;
+                          _originalImageConsent = false;
+                          result = null;
+                          scanError = null;
+                          scannedAt = null;
+                        }),
+                        icon: const Icon(Icons.close_rounded),
                       ),
                     ),
-                  ],
-                ),
-        ),
-      const SizedBox(height: AppSpacing.x3),
-        PanelTile(
-          icon: Icons.photo_library_outlined,
-          title: a.t('gallery'),
-          subtitle: a.t('galleryS'),
-          onTap: analyzing ? () {} : () => _pick(ImageSource.gallery),
-        ),
-        PanelTile(
-          icon: Icons.camera_alt_outlined,
-          title: a.t('camera'),
-          subtitle: a.t('cameraS'),
-          onTap: analyzing ? () {} : () => _pick(ImageSource.camera),
-        ),
-        SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
-          value: a.retainHistory,
-          onChanged: analyzing
-              ? null
-              : (value) async {
-                  try {
-                    await a.setRetainHistory(value);
-                  } on Exception {
-                    if (mounted) {
-                      showNotice(context, a.t('historySaveFailed'));
-                    }
-                  }
-                },
-          title: Text(
-            a.t('historyConsent'),
-            style: TextStyle(color: p.text, fontSize: 13),
-          ),
-          subtitle: Text(
-            a.t('historyConsentDetail'),
-            style: TextStyle(color: p.hint, fontSize: 11),
-          ),
-          activeThumbColor: p.accent,
-        ),
-        SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
-          value: _accountHistoryConsent,
-          onChanged: analyzing
-              ? null
-              : (value) => setState(() {
-                    _accountHistoryConsent = value;
-                    if (!value) _originalImageConsent = false;
-                  }),
-          title: Text(
-            a.t('accountHistoryConsent'),
-            style: TextStyle(color: p.text, fontSize: 13),
-          ),
-          subtitle: Text(
-            a.t('accountHistoryConsentDetail'),
-            style: TextStyle(color: p.hint, fontSize: 11),
-          ),
-          activeThumbColor: p.accent,
-        ),
-        SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
-          value: _originalImageConsent,
-          onChanged: analyzing ||
-                  !_accountHistoryConsent ||
-                  _medicalImageStorageConfigured != true
-              ? null
-              : (value) => setState(() => _originalImageConsent = value),
-          title: Text(
-            a.t('originalImageConsent'),
-            style: TextStyle(color: p.text, fontSize: 13),
-          ),
-          subtitle: Text(
-            _medicalImageStorageCheckFailed
-                ? a.t('secureHistoryError')
-                : _medicalImageStorageConfigured == true
-                    ? a.t('originalImageConsentDetail')
-                    : _checkingMedicalImageStorage
-                        ? a.t('imageStorageChecking')
-                        : a.t('imageStorageUnavailable'),
-            style: TextStyle(color: p.hint, fontSize: 11),
-          ),
-          activeThumbColor: p.accent,
-        ),
-      const SizedBox(height: AppSpacing.x2),
-        Opacity(
-          opacity: (picked == null || analyzing) ? 0.5 : 1,
-          child: NeonButton(
-            text: analyzing ? a.t('analyzing') : a.t('analyzeImage'),
-            icon: Icons.auto_awesome,
-            onTap: analyzing ? () {} : _analyze,
-          ),
-        ),
-        if (scanError != null)
-          Container(
-          margin: const EdgeInsets.only(top: AppSpacing.x4),
-          padding: const EdgeInsets.all(AppSpacing.x3),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(
-                color: const Color(0xFFEF4444).withValues(alpha: 0.45),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.error_outline_rounded,
-                  color: Color(0xFFEF4444),
-                ),
-              const SizedBox(width: AppSpacing.x2),
-                Expanded(
-                  child: Text(
-                    scanError!,
+                  if (analyzing)
+                    Container(
+                      color: Colors.black54,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_uploadingImage)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 48),
+                              child: LinearProgressIndicator(
+                                value: _uploadProgress,
+                              ),
+                            )
+                          else
+                            const CircularProgressIndicator(),
+                          const SizedBox(height: AppSpacing.x3),
+                          Text(
+                            _uploadingImage
+                                ? '${a.t('uploadingImageProgress')} ${(_uploadProgress * 100).round()}%'
+                                : a.t('analyzing'),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_a_photo_outlined, size: 65, color: p.accent),
+                  const SizedBox(height: AppSpacing.x4),
+                  Text(
+                    a.t('pickPrompt'),
                     style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                       color: p.text,
-                      fontSize: 13,
-                      height: 1.5,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
+      ),
+      const SizedBox(height: AppSpacing.x3),
+      PanelTile(
+        icon: Icons.photo_library_outlined,
+        title: a.t('gallery'),
+        subtitle: a.t('galleryS'),
+        onTap: analyzing ? () {} : () => _pick(ImageSource.gallery),
+      ),
+      PanelTile(
+        icon: Icons.camera_alt_outlined,
+        title: a.t('camera'),
+        subtitle: a.t('cameraS'),
+        onTap: analyzing ? () {} : () => _pick(ImageSource.camera),
+      ),
+      SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
+        value: a.retainHistory,
+        onChanged: analyzing
+            ? null
+            : (value) async {
+                try {
+                  await a.setRetainHistory(value);
+                } on Exception {
+                  if (mounted) {
+                    showNotice(context, a.t('historySaveFailed'));
+                  }
+                }
+              },
+        title: Text(
+          a.t('historyConsent'),
+          style: TextStyle(color: p.text, fontSize: 13),
+        ),
+        subtitle: Text(
+          a.t('historyConsentDetail'),
+          style: TextStyle(color: p.hint, fontSize: 11),
+        ),
+        activeThumbColor: p.accent,
+      ),
+      SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
+        value: _accountHistoryConsent,
+        onChanged: analyzing
+            ? null
+            : (value) => setState(() {
+                  _accountHistoryConsent = value;
+                  if (!value) _originalImageConsent = false;
+                }),
+        title: Text(
+          a.t('accountHistoryConsent'),
+          style: TextStyle(color: p.text, fontSize: 13),
+        ),
+        subtitle: Text(
+          a.t('accountHistoryConsentDetail'),
+          style: TextStyle(color: p.hint, fontSize: 11),
+        ),
+        activeThumbColor: p.accent,
+      ),
+      SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
+        value: _originalImageConsent,
+        onChanged: analyzing ||
+                !_accountHistoryConsent ||
+                _medicalImageStorageConfigured != true
+            ? null
+            : (value) => setState(() => _originalImageConsent = value),
+        title: Text(
+          a.t('originalImageConsent'),
+          style: TextStyle(color: p.text, fontSize: 13),
+        ),
+        subtitle: Text(
+          _medicalImageStorageCheckFailed
+              ? a.t('secureHistoryError')
+              : _medicalImageStorageConfigured == true
+                  ? a.t('originalImageConsentDetail')
+                  : _checkingMedicalImageStorage
+                      ? a.t('imageStorageChecking')
+                      : a.t('imageStorageUnavailable'),
+          style: TextStyle(color: p.hint, fontSize: 11),
+        ),
+        activeThumbColor: p.accent,
+      ),
+      const SizedBox(height: AppSpacing.x2),
+      Opacity(
+        opacity: (picked == null || analyzing) ? 0.5 : 1,
+        child: NeonButton(
+          text: analyzing ? a.t('analyzing') : a.t('analyzeImage'),
+          icon: Icons.auto_awesome,
+          onTap: analyzing ? () {} : _analyze,
+        ),
+      ),
+      if (scanError != null)
+        Container(
+          margin: const EdgeInsets.only(top: AppSpacing.x4),
+          padding: const EdgeInsets.all(AppSpacing.x3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEF4444).withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            border: Border.all(
+              color: const Color(0xFFEF4444).withValues(alpha: 0.45),
             ),
           ),
-        if (r != null) _resultCard(a, p, r),
-      const SizedBox(height: AppSpacing.x4),
-        Text(
-          a.t('privImg'),
-          style: TextStyle(color: p.hint, fontSize: 12, height: 1.6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Color(0xFFEF4444),
+              ),
+              const SizedBox(width: AppSpacing.x2),
+              Expanded(
+                child: Text(
+                  scanError!,
+                  style: TextStyle(
+                    color: p.text,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+      if (r != null) _resultCard(a, p, r),
+      const SizedBox(height: AppSpacing.x4),
+      Text(
+        a.t('privImg'),
+        style: TextStyle(color: p.hint, fontSize: 12, height: 1.6),
+      ),
       const SizedBox(height: AppSpacing.x4),
     ];
 
@@ -6469,8 +6272,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: scanInput,
               ),
             ),
-      ],
-    );
+          ],
+        );
       },
     );
   }
@@ -6564,8 +6367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   : () => _openSkinChat(
                         a,
                         scanContext: scanContext,
-                        scanImageBytes:
-                            a.latestSkinChatImageFor(scanContext),
+                        scanImageBytes: a.latestSkinChatImageFor(scanContext),
                       ),
               icon: const Icon(Icons.chat_bubble_outline_rounded),
               label: const Text('SkinChat AI'),
@@ -6607,44 +6409,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         final list = ListView(
           padding: const EdgeInsets.all(AppSpacing.x6),
-      children: [
-            const SizedBox(height: AppSpacing.x3),
-        Row(
           children: [
-            Expanded(
-              child: Text(
-                a.t('history'),
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: p.text,
+            const SizedBox(height: AppSpacing.x3),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    a.t('history'),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: p.text,
+                    ),
+                  ),
                 ),
-              ),
+                IconButton(
+                  tooltip: a.t('refreshAccountHistory'),
+                  onPressed:
+                      _refreshingAccountHistory ? null : _refreshAccountHistory,
+                  icon: _refreshingAccountHistory
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh),
+                ),
+              ],
             ),
-            IconButton(
-              tooltip: a.t('refreshAccountHistory'),
-              onPressed:
-                  _refreshingAccountHistory ? null : _refreshAccountHistory,
-              icon: _refreshingAccountHistory
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh),
-            ),
-          ],
-        ),
             const SizedBox(height: AppSpacing.x3),
             Text(
               a.t('historyDesc'),
               style: TextStyle(color: p.sub, height: 1.6),
             ),
             const SizedBox(height: AppSpacing.x1),
-        Text(
-          a.t('historySourceDesc'),
-          style: TextStyle(color: p.hint, fontSize: 12, height: 1.5),
-        ),
+            Text(
+              a.t('historySourceDesc'),
+              style: TextStyle(color: p.hint, fontSize: 12, height: 1.5),
+            ),
             const SizedBox(height: AppSpacing.x4),
             TextField(
               onChanged: (value) => setState(() => _historySearchQuery = value),
@@ -6663,80 +6465,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             ),
-        if (_accountHistoryErrorStatus != null) ...[
+            if (_accountHistoryErrorStatus != null) ...[
               const SizedBox(height: AppSpacing.x3),
-          Text(
-            _accountHistoryErrorStatus == 401
-                ? a.t('secureHistoryAuthError')
-                : _accountHistoryErrorStatus == 503
-                    ? a.t('secureHistoryUnavailable')
-                    : a.t('secureHistoryError'),
-            style: const TextStyle(color: Color(0xFFEF4444)),
-          ),
-        ],
+              Text(
+                _accountHistoryErrorStatus == 401
+                    ? a.t('secureHistoryAuthError')
+                    : _accountHistoryErrorStatus == 503
+                        ? a.t('secureHistoryUnavailable')
+                        : a.t('secureHistoryError'),
+                style: const TextStyle(color: Color(0xFFEF4444)),
+              ),
+            ],
             const SizedBox(height: AppSpacing.x4),
-        if (scans.isEmpty) ...[
+            if (scans.isEmpty) ...[
               const SizedBox(height: AppSpacing.x6),
-          Icon(Icons.history_rounded, size: 75, color: p.accent),
+              Icon(Icons.history_rounded, size: 75, color: p.accent),
               const SizedBox(height: AppSpacing.x4),
-          Text(
+              Text(
                 query.isEmpty ? a.t('noScans') : a.t('noResults'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-              color: p.text,
-            ),
-          ),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.bold,
+                  color: p.text,
+                ),
+              ),
               if (query.isEmpty) ...[
                 const SizedBox(height: AppSpacing.x2),
-          Text(
-            a.t('noScansDesc2'),
-            textAlign: TextAlign.center,
-            style: TextStyle(color: p.hint, height: 1.6),
-          ),
-        ],
+                Text(
+                  a.t('noScansDesc2'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: p.hint, height: 1.6),
+                ),
+              ],
             ],
-        if (scans.any((scan) => !scan.accountRecord)) ...[
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: TextButton.icon(
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (dialogContext) => AlertDialog(
-                    backgroundColor: p.panel,
+            if (scans.any((scan) => !scan.accountRecord)) ...[
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        backgroundColor: p.panel,
                         title: Text(
                           a.t('clearLocalHistory'),
                           style: TextStyle(color: p.text),
                         ),
-                    content: Text(
-                      a.t('clearLocalHistoryConfirm'),
-                      style: TextStyle(color: p.sub),
-                    ),
-                    actions: [
-                      TextButton(
+                        content: Text(
+                          a.t('clearLocalHistoryConfirm'),
+                          style: TextStyle(color: p.sub),
+                        ),
+                        actions: [
+                          TextButton(
                             onPressed: () =>
                                 Navigator.pop(dialogContext, false),
-                        child: Text(a.t('cancel')),
+                            child: Text(a.t('cancel')),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                            child: Text(a.t('clearLocalHistory')),
+                          ),
+                        ],
                       ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(dialogContext, true),
-                        child: Text(a.t('clearLocalHistory')),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed == true) {
-                  try {
-                    await a.clearScans();
-                  } on Exception {
+                    );
+                    if (confirmed == true) {
+                      try {
+                        await a.clearScans();
+                      } on Exception {
                         if (context.mounted) {
-                      showNotice(context, a.t('historyDeleteFailed'));
+                          showNotice(context, a.t('historyDeleteFailed'));
+                        }
+                      }
                     }
-                  }
-                }
-              },
+                  },
                   icon: Icon(
                     Icons.delete_outline_rounded,
                     color: p.accent,
@@ -6832,15 +6634,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Text(
                 '${a.t('bodyLocation')}: $location',
                 style: TextStyle(color: p.sub),
-            ),
+              ),
             ],
             if (scan.summary?.isNotEmpty == true) ...[
               const SizedBox(height: AppSpacing.x6),
               SelectableText(
                 scan.summary!,
                 style: TextStyle(color: p.sub, height: 1.5),
-          ),
-        ],
+              ),
+            ],
             const SizedBox(height: AppSpacing.x6),
             SizedBox(
               width: double.infinity,
@@ -6850,7 +6652,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 label: Text(a.t('viewDetails')),
               ),
             ),
-      ],
+          ],
         ),
       ),
     );
@@ -8234,243 +8036,243 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
 
     final settingsSections = <Widget>[
-                      section(
-                        text('skinAiSettings'),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            preferenceRow(
-                              icon: Icons.spa_outlined,
-                              title: text('primaryGoal'),
-                              value: text('goal_${a.skincareGoal}'),
-                              accent: violetAccent,
-                              onTap: _chooseGoal,
-                            ),
-                            divider(),
-                            preferenceRow(
-                              icon: Icons.alarm_rounded,
-                              title: text('dailyReminder'),
-                              value: TimeOfDay(
-                                hour: a.reminderHour,
-                                minute: a.reminderMinute,
-                              ).format(context),
-                              accent: cyanAccent,
-                              last: true,
-                              onTap: _chooseReminderTime,
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              text('skinType'),
-                              style: TextStyle(
-                                color: ink,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            skinTypeSelector(),
-                          ],
-                        ),
-                      ),
-                      section(
-                        _label(a, 'myProfile'),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final summary in profileSummary)
-                              Chip(
-                                label: Text(
-                                  summary,
+      section(
+        text('skinAiSettings'),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            preferenceRow(
+              icon: Icons.spa_outlined,
+              title: text('primaryGoal'),
+              value: text('goal_${a.skincareGoal}'),
+              accent: violetAccent,
+              onTap: _chooseGoal,
+            ),
+            divider(),
+            preferenceRow(
+              icon: Icons.alarm_rounded,
+              title: text('dailyReminder'),
+              value: TimeOfDay(
+                hour: a.reminderHour,
+                minute: a.reminderMinute,
+              ).format(context),
+              accent: cyanAccent,
+              last: true,
+              onTap: _chooseReminderTime,
+            ),
+            const SizedBox(height: 18),
+            Text(
+              text('skinType'),
+              style: TextStyle(
+                color: ink,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 10),
+            skinTypeSelector(),
+          ],
+        ),
+      ),
+      section(
+        _label(a, 'myProfile'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final summary in profileSummary)
+              Chip(
+                label: Text(
+                  summary,
                   style: TextStyle(color: ink, fontSize: 12),
-                                  ),
+                ),
                 backgroundColor: blueAccent.withValues(alpha: 0.1),
-                                side: BorderSide(color: border),
-                              ),
-                          ],
-                        ),
-                      ),
-                      section(
-                        text('preferences'),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            preferenceRow(
-                              icon: Icons.language_rounded,
-                              title: text('language'),
-                              value: langNames[a.lang]!,
-                              onTap: _chooseLanguage,
-                            ),
-                            divider(),
-                            preferenceRow(
-                              icon: Icons.palette_outlined,
-                              title: text('theme'),
-                              value: text(
-                                switch (a.themeMode) {
-                                  ThemeMode.system => 'auto',
-                                  ThemeMode.light => 'light',
-                                  ThemeMode.dark => 'dark',
-                                },
-                              ),
-                              accent: violetAccent,
-                              onTap: _chooseTheme,
-                            ),
-                            const SizedBox(height: 3),
-                            themeSelector(),
-                            const SizedBox(height: 18),
-                            preferenceRow(
-                              icon: Icons.dns_outlined,
-                              title: _label(a, 'serverAddr'),
-                              value: a.serverUrl,
-                              accent: cyanAccent,
-                              onTap: _editServer,
-                            ),
-                            const SizedBox(height: 18),
-                            preferenceRow(
-                              icon: Icons.color_lens_outlined,
-                              title: text('accentColor'),
-                              value: text(
-                                a.accentColor == const Color(0xFF00D4FF)
-                                    ? 'cyanAccent'
-                                    : a.accentColor == const Color(0xFF7B2CBF)
-                                        ? 'purpleAccent'
+                side: BorderSide(color: border),
+              ),
+          ],
+        ),
+      ),
+      section(
+        text('preferences'),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            preferenceRow(
+              icon: Icons.language_rounded,
+              title: text('language'),
+              value: langNames[a.lang]!,
+              onTap: _chooseLanguage,
+            ),
+            divider(),
+            preferenceRow(
+              icon: Icons.palette_outlined,
+              title: text('theme'),
+              value: text(
+                switch (a.themeMode) {
+                  ThemeMode.system => 'auto',
+                  ThemeMode.light => 'light',
+                  ThemeMode.dark => 'dark',
+                },
+              ),
+              accent: violetAccent,
+              onTap: _chooseTheme,
+            ),
+            const SizedBox(height: 3),
+            themeSelector(),
+            const SizedBox(height: 18),
+            preferenceRow(
+              icon: Icons.dns_outlined,
+              title: _label(a, 'serverAddr'),
+              value: a.serverUrl,
+              accent: cyanAccent,
+              onTap: _editServer,
+            ),
+            const SizedBox(height: 18),
+            preferenceRow(
+              icon: Icons.color_lens_outlined,
+              title: text('accentColor'),
+              value: text(
+                a.accentColor == const Color(0xFF00D4FF)
+                    ? 'cyanAccent'
+                    : a.accentColor == const Color(0xFF7B2CBF)
+                        ? 'purpleAccent'
                         : a.accentColor == const Color(0xFF10B981)
-                                            ? 'emeraldAccent'
-                                            : 'electricBlue',
-                              ),
-                              accent: violetAccent,
-                              onTap: _chooseAccentColor,
-                            ),
-                            const SizedBox(height: 18),
-                            preferenceRow(
-                              icon: Icons.notifications_active_outlined,
-                              title: text('notifications'),
+                            ? 'emeraldAccent'
+                            : 'electricBlue',
+              ),
+              accent: violetAccent,
+              onTap: _chooseAccentColor,
+            ),
+            const SizedBox(height: 18),
+            preferenceRow(
+              icon: Icons.notifications_active_outlined,
+              title: text('notifications'),
               value:
                   a.notificationsEnabled ? text('enabled') : text('disabled'),
-                              accent: blueAccent,
-                              last: true,
-                              onTap: () => unawaited(
-                                _setNotifications(!a.notificationsEnabled),
-                              ),
-                              trailing: Switch.adaptive(
-                                value: a.notificationsEnabled,
-                                activeThumbColor: blueAccent,
+              accent: blueAccent,
+              last: true,
+              onTap: () => unawaited(
+                _setNotifications(!a.notificationsEnabled),
+              ),
+              trailing: Switch.adaptive(
+                value: a.notificationsEnabled,
+                activeThumbColor: blueAccent,
                 onChanged: (value) => unawaited(_setNotifications(value)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      section(
-                        text('aboutDataSources'),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            infoTile(
-                              title: text('howSkinAiWorks'),
-                              icon: Icons.auto_awesome_outlined,
-                              child: Text(
-                                text('howSkinAiWorksBody'),
-                                textAlign: TextAlign.start,
+              ),
+            ),
+          ],
+        ),
+      ),
+      section(
+        text('aboutDataSources'),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            infoTile(
+              title: text('howSkinAiWorks'),
+              icon: Icons.auto_awesome_outlined,
+              child: Text(
+                text('howSkinAiWorksBody'),
+                textAlign: TextAlign.start,
                 style: TextStyle(color: muted, height: 1.55, fontSize: 13),
-                              ),
-                            ),
-                            infoTile(
-                              title: text('scanProvider'),
-                              icon: Icons.cloud_outlined,
-                              child: Text(
-                                text('scanProviderDescription'),
-                                textAlign: TextAlign.start,
+              ),
+            ),
+            infoTile(
+              title: text('scanProvider'),
+              icon: Icons.cloud_outlined,
+              child: Text(
+                text('scanProviderDescription'),
+                textAlign: TextAlign.start,
                 style: TextStyle(color: muted, height: 1.55, fontSize: 13),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      section(
-                        text('accountSecurity'),
-                        Column(
-                          children: [
-                            preferenceRow(
-                              icon: Icons.shield_outlined,
-                              title: text('manageAccount'),
-                              value: text('accountSecuritySub'),
-                              accent: cyanAccent,
-                              onTap: _showAccountSecurity,
-                            ),
-                            divider(),
-                            preferenceRow(
-                              icon: Icons.lock_outline_rounded,
-                              title: text('privacy'),
-                              value: text('privacySub'),
-                              accent: violetAccent,
-                              onTap: () => unawaited(
+              ),
+            ),
+          ],
+        ),
+      ),
+      section(
+        text('accountSecurity'),
+        Column(
+          children: [
+            preferenceRow(
+              icon: Icons.shield_outlined,
+              title: text('manageAccount'),
+              value: text('accountSecuritySub'),
+              accent: cyanAccent,
+              onTap: _showAccountSecurity,
+            ),
+            divider(),
+            preferenceRow(
+              icon: Icons.lock_outline_rounded,
+              title: text('privacy'),
+              value: text('privacySub'),
+              accent: violetAccent,
+              onTap: () => unawaited(
                 _showInformation('privacy', text('privacyPolicy')),
-                              ),
-                            ),
-                            divider(),
-                            preferenceRow(
-                              icon: Icons.info_outline_rounded,
-                              title: text('about'),
-                              value: text('version'),
-                              accent: blueAccent,
-                              last: true,
-                              onTap: () => unawaited(
-                                _showInformation(
-                                  'about',
-                                  '${text('aboutDescription')}\n\n${text('version')}',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+              ),
+            ),
+            divider(),
+            preferenceRow(
+              icon: Icons.info_outline_rounded,
+              title: text('about'),
+              value: text('version'),
+              accent: blueAccent,
+              last: true,
+              onTap: () => unawaited(
+                _showInformation(
+                  'about',
+                  '${text('aboutDescription')}\n\n${text('version')}',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       Padding(
         padding: const EdgeInsets.only(top: 14),
         child: Material(
           color: isDark ? const Color(0xFF3B1F2B) : const Color(0xFFFFF4F3),
-                        borderRadius: BorderRadius.circular(18),
-                        child: InkWell(
-                          onTap: widget.onLogout,
-                          borderRadius: BorderRadius.circular(18),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 17,
-                              vertical: 15,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isDark
-                                    ? const Color(0xFF63303E)
-                                    : const Color(0xFFFFE2DE),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.logout_rounded,
-                                  color: isDark
-                                      ? const Color(0xFFFF8A80)
-                                      : const Color(0xFFE45D59),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  text('signOut'),
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? const Color(0xFFFFB4AB)
-                                        : const Color(0xFFD94E4A),
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            onTap: widget.onLogout,
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 17,
+                vertical: 15,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF63303E)
+                      : const Color(0xFFFFE2DE),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.logout_rounded,
+                    color: isDark
+                        ? const Color(0xFFFF8A80)
+                        : const Color(0xFFE45D59),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    text('signOut'),
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFFFFB4AB)
+                          : const Color(0xFFD94E4A),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     ];
 
