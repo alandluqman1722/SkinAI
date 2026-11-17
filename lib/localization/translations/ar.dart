@@ -297,6 +297,8 @@ const translationsAr = <String, Map<String, String>>{
     'navHome': 'الرئيسية',
     'navScan': 'الفحص',
     'navHistory': 'السجل',
+    'navRoutine': 'روتين',
+    'navSettings': 'إعدادات',
     'notifications': 'الإشعارات',
     'notif1t': 'مرحبًا بك في Skin AI',
     'notif1d': 'حسابك جاهز. ابدأ بفحص بشرتك.',

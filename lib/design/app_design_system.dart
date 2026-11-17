@@ -96,6 +96,10 @@ class AppTheme {
         seedColor: accent,
         brightness: brightness,
       ),
+      appBarTheme: AppBarTheme(
+        iconTheme: IconThemeData(color: accent),
+        actionsIconTheme: IconThemeData(color: accent),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor:

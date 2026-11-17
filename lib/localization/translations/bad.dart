@@ -308,6 +308,8 @@ const translationsBad = <String, Map<String, String>>{
     'navHome': 'سەرەکی',
     'navScan': 'سکان',
     'navHistory': 'مێژوو',
+    'navRoutine': 'رۆتین',
+    'navSettings': 'ڕێکخستن',
     'notifications': 'ئاگەهدارکرن',
     'notif1t': 'بخێرهاتن بۆ Skin AI',
     'notif1d': 'هەژمارا تە ئامادەیە. ب سکانکرنا پێستێ خۆ دەستپێکە.',

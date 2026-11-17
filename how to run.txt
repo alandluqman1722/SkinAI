@@ -392,6 +392,10 @@ In PowerShell window 2:
    flutter run -d chrome --dart-define-from-file=firebase.config.json --dart-define=AI_API_URL=http://127.0.0.1:8000
 
 Start Flutter in the Android emulator
+
+
+
+flutter run -d emulator-5554 --dart-define-from-file=firebase.config.json --dart-define=AI_API_URL=http://10.0.2.2:8000
 -------------------------------------
 
 Use the emulator's host address (10.0.2.2) so Android can reach the backend:

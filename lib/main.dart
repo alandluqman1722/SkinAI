@@ -18,6 +18,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:skin_ai/image_picker_feedback.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_ai/design/app_design_system.dart';
+import 'package:skin_ai/navigation/edge_swipe_navigation.dart';
 import 'package:skin_ai/auth/social_auth_service.dart';
 import 'package:skin_ai/multipart_upload.dart';
 import 'package:skin_ai/scan_report.dart';
@@ -2279,13 +2280,21 @@ class AppScope extends InheritedNotifier<AppController> {
 
 // -------------------- App root --------------------
 
-class SkinAIApp extends StatelessWidget {
+class SkinAIApp extends StatefulWidget {
   const SkinAIApp({super.key});
+
+  @override
+  State<SkinAIApp> createState() => _SkinAIAppState();
+}
+
+class _SkinAIAppState extends State<SkinAIApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
     final a = AppScope.of(context);
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Skin AI',
       themeMode: a.themeMode,
@@ -2309,7 +2318,14 @@ class SkinAIApp extends StatelessWidget {
       ],
       builder: (context, child) => Directionality(
         textDirection: LocaleHelper.directionFor(a.lang.locale),
-        child: child ?? const SizedBox.shrink(),
+        child: EdgeSwipeNavigation(
+          canGoBack: () => _navigatorKey.currentState?.canPop() ?? false,
+          onBack: () {
+            final navigator = _navigatorKey.currentState;
+            if (navigator != null && navigator.canPop()) navigator.pop();
+          },
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       home: const SplashScreen(),
     );
@@ -4932,44 +4948,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final a = AppScope.of(context);
     final p = Pal.of(context);
 
-    return NeonBackground(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final viewport = AppBreakpoints.fromWidth(constraints.maxWidth);
-          final mainPanel = _dashboardMainPanel(a, p);
+    return EdgeSwipeNavigation(
+      canStartAt: selectedIndex == 3 ? (position) => position.dy <= 112 : null,
+      onBack: selectedIndex > 0 ? () => _selectTab(selectedIndex - 1) : null,
+      onForward: selectedIndex < 4 ? () => _selectTab(selectedIndex + 1) : null,
+      child: NeonBackground(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final viewport = AppBreakpoints.fromWidth(constraints.maxWidth);
+            final mainPanel = _dashboardMainPanel(a, p);
 
-          return switch (viewport) {
-            AppViewport.compact => Column(
-                children: [
-                  Expanded(child: mainPanel),
-                  _bottomNavigation(a, p),
-                ],
-              ),
-            AppViewport.medium => Row(
-                children: [
-                  _tabletNavigation(a, p),
-                  VerticalDivider(width: 1, color: p.border),
-                  Expanded(child: mainPanel),
-                ],
-              ),
-            AppViewport.expanded => Row(
-                children: [
-                  _desktopNavigation(a, p),
-                  VerticalDivider(width: 1, color: p.border),
-                  Expanded(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: AppBreakpoints.contentMaxWidth,
+            return switch (viewport) {
+              AppViewport.compact => Column(
+                  children: [
+                    Expanded(child: mainPanel),
+                    _bottomNavigation(a, p),
+                  ],
+                ),
+              AppViewport.medium => Row(
+                  children: [
+                    _tabletNavigation(a, p),
+                    VerticalDivider(width: 1, color: p.border),
+                    Expanded(child: mainPanel),
+                  ],
+                ),
+              AppViewport.expanded => Row(
+                  children: [
+                    _desktopNavigation(a, p),
+                    VerticalDivider(width: 1, color: p.border),
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: AppBreakpoints.contentMaxWidth,
+                          ),
+                          child: mainPanel,
                         ),
-                        child: mainPanel,
                       ),
                     ),
-                  ),
-                ],
-              ),
-          };
-        },
+                  ],
+                ),
+            };
+          },
+        ),
       ),
     );
   }
@@ -5018,7 +5039,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  List<(IconData, IconData, String)> _navigationItems(AppController a) => [
+  List<(IconData, IconData, String)> _navigationItems(
+    AppController a, {
+    bool compact = false,
+  }) =>
+      [
         (Icons.home_outlined, Icons.home, a.t('navHome')),
         (Icons.history, Icons.history, a.t('navHistory')),
         (
@@ -5029,12 +5054,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         (
           Icons.checklist_outlined,
           Icons.checklist_rounded,
-          a.routineText('routines'),
+          compact ? a.t('navRoutine') : a.routineText('routines'),
         ),
         (
           Icons.settings_outlined,
           Icons.settings_rounded,
-          a.t('settings'),
+          compact ? a.t('navSettings') : a.t('settings'),
         ),
       ];
 
@@ -5044,8 +5069,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       indicatorColor: p.accent.withValues(alpha: 0.18),
       selectedIndex: selectedIndex,
       onDestinationSelected: _selectTab,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      labelPadding: const EdgeInsets.only(top: 2),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return TextStyle(
+          color: selected ? p.text : p.sub,
+          fontSize: 11,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          height: 1,
+        );
+      }),
       destinations: [
-        for (final (icon, selectedIcon, label) in _navigationItems(a))
+        for (final (icon, selectedIcon, label)
+            in _navigationItems(a, compact: true))
           NavigationDestination(
             icon: Icon(icon),
             selectedIcon: Icon(selectedIcon, color: p.accent),

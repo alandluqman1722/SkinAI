@@ -132,7 +132,7 @@ void main() {
         'Home',
         'History',
         'Scan',
-        'Skincare routine',
+        'Routine',
         'Settings',
       ],
     );
@@ -144,6 +144,18 @@ void main() {
         tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
         index,
       );
+      if (index == 3) {
+        final routineSwipe = await tester.startGesture(const Offset(10, 300));
+        await routineSwipe.moveTo(const Offset(130, 300));
+        await routineSwipe.up();
+        await tester.pump();
+        expect(
+          tester
+              .widget<NavigationBar>(find.byType(NavigationBar))
+              .selectedIndex,
+          3,
+        );
+      }
     }
 
     await tester.tap(find.byType(NavigationDestination).at(4));
@@ -158,6 +170,94 @@ void main() {
     await controller.setLang(AppLang.ku);
     await tester.pump();
     expect(find.text('هەستیار'), findsOneWidget);
+
+    for (final language in [
+      AppLang.ku,
+      AppLang.badini,
+      AppLang.ar,
+      AppLang.en,
+    ]) {
+      await controller.setLang(language);
+      await tester.pump();
+      final localizedDestinations =
+          tester.widget<NavigationBar>(find.byType(NavigationBar)).destinations;
+      expect(
+        localizedDestinations.map(
+          (destination) => (destination as NavigationDestination).label,
+        ),
+        [
+          controller.t('navHome'),
+          controller.t('navHistory'),
+          controller.t('navScan'),
+          controller.t('navRoutine'),
+          controller.t('navSettings'),
+        ],
+      );
+      expect(
+        localizedDestinations.map(
+          (destination) =>
+              ((destination as NavigationDestination).icon as Icon).icon,
+        ),
+        [
+          Icons.home_outlined,
+          Icons.history,
+          Icons.center_focus_weak,
+          Icons.checklist_outlined,
+          Icons.settings_outlined,
+        ],
+      );
+    }
+  });
+
+  testWidgets('compact Kurdish bottom navigation fits a narrow RTL screen', (
+    tester,
+  ) async {
+    _setViewport(tester, const Size(320, 568));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    SharedPreferences.setMockInitialValues({});
+    final controller = AppController();
+    await controller.init();
+    await controller.setLang(AppLang.ku);
+
+    await tester.pumpWidget(
+      AppScope(
+        controller: controller,
+        child: const MaterialApp(
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: DashboardScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(tester.takeException(), isNull);
+    final destinations =
+        tester.widget<NavigationBar>(find.byType(NavigationBar)).destinations;
+    expect((destinations[3] as NavigationDestination).label, 'ڕۆتین');
+    final bottomNavigation = find.byType(NavigationBar);
+    expect(
+      tester
+          .getSize(find.descendant(
+            of: bottomNavigation,
+            matching: find.text('ڕۆتین'),
+          ))
+          .height,
+      lessThanOrEqualTo(20),
+    );
+    expect(
+      tester
+          .getSize(find.descendant(
+            of: bottomNavigation,
+            matching: find.text('ڕێکخستن'),
+          ))
+          .height,
+      lessThanOrEqualTo(24),
+    );
   });
 
   testWidgets('dashboard adapts navigation for tablet and desktop widths', (

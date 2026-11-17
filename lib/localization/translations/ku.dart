@@ -311,6 +311,8 @@ const translationsKu = <String, Map<String, String>>{
     'navHome': 'سەرەکی',
     'navScan': 'سکان',
     'navHistory': 'مێژوو',
+    'navRoutine': 'ڕۆتین',
+    'navSettings': 'ڕێکخستن',
     'notifications': 'ئاگادارکردنەوەکان',
     'notif1t': 'بەخێربێیت بۆ Skin AI',
     'notif1d': 'هەژمارەکەت ئامادەیە. بە سکانکردنی پێستت دەست پێبکە.',

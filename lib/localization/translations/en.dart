@@ -304,6 +304,8 @@ const translationsEn = <String, Map<String, String>>{
     'navHome': 'Home',
     'navScan': 'Scan',
     'navHistory': 'History',
+    'navRoutine': 'Routine',
+    'navSettings': 'Settings',
     'notifications': 'Notifications',
     'notif1t': 'Welcome to Skin AI',
     'notif1d': 'Your account is ready. Start by scanning your skin.',
