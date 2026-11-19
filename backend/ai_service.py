@@ -1,6 +1,5 @@
 import json
 import logging
-import math
 import os
 import threading
 from datetime import datetime, timezone
@@ -8,21 +7,20 @@ from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 
-import httpx
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .firebase_auth import require_firebase_user
 from .firebase_app import PROJECT_ROOT
+from .ivy_ai_provider import IvyAIProvider, validate_ivy_response
+from .medical_ai.safety_policy import classify_skin_analysis
 
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 
-_SCANSKIN_URL = "https://scanskinai.aihealthpred.com/api/detect/"
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 _MAX_IMAGE_PIXELS = 40_000_000
 _MAX_IMAGE_SIDE = 2000
-_MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 _SUPPORTED_FORMATS = {
     "JPEG": "image/jpeg",
     "PNG": "image/png",
@@ -34,15 +32,11 @@ _SUPPORTED_FORMATS = {
 _HISTORY_LOCK = threading.Lock()
 _logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["ScanSkinAI"])
+router = APIRouter(tags=["Ivy AI screening"])
 
 
 def _mock_enabled() -> bool:
     return os.getenv("MOCK_API", "").strip() == "1"
-
-
-def _create_http_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0))
 
 
 async def _read_and_convert_image(image: UploadFile) -> bytes:
@@ -115,7 +109,7 @@ async def _read_original_and_convert_image(
 
 
 def _history_path() -> Path:
-    configured_path = os.getenv("SCANSKIN_HISTORY_PATH", "").strip()
+    configured_path = os.getenv("SKINAI_SCAN_HISTORY_PATH", "").strip()
     return Path(configured_path) if configured_path else PROJECT_ROOT / "scan_log.jsonl"
 
 
@@ -128,7 +122,7 @@ def _append_history(record: dict[str, object]) -> None:
             history.write(encoded + "\n")
     except (OSError, TypeError, ValueError) as error:
         _logger.error(
-            "Could not persist ScanSkinAI history (%s).",
+            "Could not persist Ivy AI history (%s).",
             type(error).__name__,
         )
         raise HTTPException(
@@ -141,34 +135,7 @@ def _append_history(record: dict[str, object]) -> None:
 
 
 def _validate_provider_result(payload: object) -> dict[str, object]:
-    if not isinstance(payload, dict):
-        raise HTTPException(
-            status_code=502,
-            detail="The screening provider returned an invalid response.",
-        )
-
-    result = payload.get("result")
-    confidence = payload.get("confidence")
-    summary = payload.get("summary")
-    if (
-        not isinstance(result, str)
-        or not result.strip()
-        or isinstance(confidence, bool)
-        or not isinstance(confidence, (int, float))
-        or not math.isfinite(confidence)
-        or confidence < 0
-        or confidence > 100
-        or not isinstance(summary, str)
-    ):
-        raise HTTPException(
-            status_code=502,
-            detail="The screening provider returned an invalid response.",
-        )
-    return {
-        "result": result,
-        "confidence": float(confidence),
-        "summary": summary,
-    }
+    return validate_ivy_response(payload)
 
 
 @router.post("/analyze")
@@ -199,104 +166,28 @@ async def analyze(
         await _read_original_and_convert_image(image)
     )
     if _mock_enabled():
-        payload: object = {
+        analysis = {
             "result": "Mock screening result",
-            "confidence": 0.84,
+            "confidence": 84.0,
             "summary": (
                 "## Mock analysis\n\n"
                 "This is a **mock response** for testing the app without using "
-                "a ScanSkinAI call.\n\n- No diagnosis was made."
+                "an Ivy AI call.\n\n- No diagnosis was made."
             ),
         }
     else:
-        api_key = os.getenv("SCANSKIN_API_KEY", "").strip()
-        if not api_key:
-            raise HTTPException(
-                status_code=503,
-                detail="ScanSkinAI is not configured on the server.",
-            )
-
-        fields = {
-            "skin_illness_location": skin_illness_location,
-            "symptoms_duration": symptoms_duration,
-            "symptoms_details": symptoms_details,
-            "symptoms_change_over_time": symptoms_change_over_time,
-        }
-        data = {
-            name: value.strip()
-            for name, value in fields.items()
-            if value is not None and value.strip()
-        }
-        try:
-            async with _create_http_client() as client:
-                response = await client.post(
-                    _SCANSKIN_URL,
-                    headers={
-                        "X-API-KEY": api_key,
-                        "Accept": "application/json",
-                    },
-                    files={
-                        "input_image": (
-                            "scan.jpg",
-                            jpeg_bytes,
-                            "image/jpeg",
-                        )
-                    },
-                    data=data,
-                )
-        except httpx.TimeoutException as error:
-            _logger.warning("ScanSkinAI request timed out.")
-            raise HTTPException(
-                status_code=504,
-                detail="The screening provider timed out. Please try again later.",
-            ) from error
-        except httpx.HTTPError as error:
-            _logger.warning(
-                "ScanSkinAI request failed (%s).",
-                type(error).__name__,
-            )
-            raise HTTPException(
-                status_code=502,
-                detail="The screening provider could not be reached.",
-            ) from error
-
-        if response.status_code in {401, 403}:
-            raise HTTPException(
-                status_code=response.status_code,
-                detail="The screening provider rejected its server credentials.",
-            )
-        if response.status_code == 400:
-            raise HTTPException(
-                status_code=400,
-                detail="The screening provider could not process this image.",
-            )
-        if not 200 <= response.status_code < 300:
-            _logger.warning(
-                "ScanSkinAI returned HTTP %d.",
-                response.status_code,
-            )
-            raise HTTPException(
-                status_code=502,
-                detail="The screening provider could not complete the request.",
-            )
-        if len(response.content) > _MAX_RESPONSE_BYTES:
-            raise HTTPException(
-                status_code=502,
-                detail="The screening provider returned an oversized response.",
-            )
-        try:
-            payload = response.json()
-        except ValueError as error:
-            raise HTTPException(
-                status_code=502,
-                detail="The screening provider returned invalid JSON.",
-            ) from error
-
-    analysis = _validate_provider_result(payload)
+        analysis = await IvyAIProvider().analyze(jpeg_bytes)
+    concern_level, referral_required = classify_skin_analysis(analysis)
     scan_id = str(uuid4())
     timestamp = datetime.now(timezone.utc).isoformat()
     response_data = {
         **analysis,
+        "safety": {
+            "concern_level": concern_level,
+            "referral_required": referral_required,
+            "medication_recommendations_allowed": False,
+            "medication_block_reasons": ["image_only_workflow"],
+        },
         "id": scan_id,
         "timestamp": timestamp,
     }

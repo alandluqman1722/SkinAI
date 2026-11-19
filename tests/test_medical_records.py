@@ -279,7 +279,7 @@ class MedicalRecordApiTests(unittest.TestCase):
             ("user-a", "medical_records", "provider-issued-uuid")
         ]
         self.assertEqual(stored["type"], "scans")
-        self.assertEqual(stored["source"], "ScanSkinAI")
+        self.assertEqual(stored["source"], "Ivy AI")
         self.assertEqual(stored["result"], "Provider result")
         self.assertEqual(stored["confidence"], 72.5)
         self.assertIsNone(stored["image_file_path"])

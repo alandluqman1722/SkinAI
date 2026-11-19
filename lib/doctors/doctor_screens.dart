@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../admin/admin_api_service.dart';
+import '../admin/admin_appointments_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
+import '../admin/admin_users_screen.dart';
 import '../image_picker_feedback.dart';
 import '../localization/app_localizations.dart';
 import 'doctor_api_service.dart';
@@ -14,12 +19,16 @@ class DoctorDirectoryScreen extends StatefulWidget {
     required this.baseUrl,
     required this.idTokenProvider,
     this.api,
+    this.adminApi,
+    this.tokenChanges,
     super.key,
   });
 
   final String baseUrl;
   final DoctorIdTokenProvider idTokenProvider;
   final DoctorApiService? api;
+  final AdminApiService? adminApi;
+  final Stream<void>? tokenChanges;
 
   @override
   State<DoctorDirectoryScreen> createState() => _DoctorDirectoryScreenState();
@@ -28,7 +37,9 @@ class DoctorDirectoryScreen extends StatefulWidget {
 class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen>
     with SingleTickerProviderStateMixin {
   late final DoctorApiService _api;
+  late final AdminApiService _adminApi;
   late final TabController _tabs;
+  StreamSubscription<void>? _adminTokenSubscription;
   final _search = TextEditingController();
   List<DoctorProfile> _doctors = [];
   List<DoctorAppointment> _appointments = [];
@@ -42,6 +53,8 @@ class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen>
   String _sort = 'rating';
   bool _loading = true;
   bool _appointmentsLoading = false;
+  bool _isAdmin = false;
+  int _adminAccessRequest = 0;
   bool _favoritesOnly = false;
   int _directoryRequest = 0;
   final Set<String> _favoriteRequests = {};
@@ -58,7 +71,15 @@ class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen>
           baseUrl: widget.baseUrl,
           idTokenProvider: widget.idTokenProvider,
         );
+    _adminApi = widget.adminApi ??
+        AdminApiService(
+          baseUrl: widget.baseUrl,
+          idTokenProvider: widget.idTokenProvider,
+        );
+    _adminTokenSubscription =
+        widget.tokenChanges?.listen((_) => _loadAdminAccess());
     _tabs = TabController(length: 2, vsync: this)..addListener(_onTabChanged);
+    _loadAdminAccess();
     _loadDirectory();
   }
 
@@ -67,8 +88,29 @@ class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen>
     _tabs
       ..removeListener(_onTabChanged)
       ..dispose();
+    _adminAccessRequest++;
+    _adminTokenSubscription?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAdminAccess() async {
+    final request = ++_adminAccessRequest;
+    try {
+      final isAdmin = await _adminApi.checkAdminStatus();
+      if (!mounted || request != _adminAccessRequest) return;
+      setState(() => _isAdmin = isAdmin);
+    } on AdminApiException catch (error) {
+      if (!mounted || request != _adminAccessRequest) return;
+      setState(() => _isAdmin = false);
+      if (error.statusCode != 401 && error.statusCode != 403) {
+        _notice(_t('requestFailed'));
+      }
+    } on Exception {
+      if (!mounted || request != _adminAccessRequest) return;
+      setState(() => _isAdmin = false);
+      _notice(_t('requestFailed'));
+    }
   }
 
   void _onTabChanged() {
@@ -184,11 +226,12 @@ class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen>
       appBar: AppBar(
         title: Text(_t('title')),
         actions: [
-          IconButton(
-            tooltip: _t('adminPanel'),
-            onPressed: () => _openAdmin(),
-            icon: const Icon(Icons.admin_panel_settings_outlined),
-          ),
+          if (_isAdmin)
+            IconButton(
+              tooltip: _t('adminPanel'),
+              onPressed: _openAdmin,
+              icon: const Icon(Icons.admin_panel_settings_outlined),
+            ),
         ],
         bottom: TabBar(
           controller: _tabs,
@@ -679,10 +722,22 @@ class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen>
   Future<void> _openAdmin() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) => DoctorAdminScreen(
-          api: _api,
-          localize: _t,
-          onNotice: _notice,
+        builder: (_) => AdminDashboardScreen(
+          api: _adminApi,
+          tokenChanges: widget.tokenChanges,
+          doctorManagementBuilder: (_) => DoctorAdminScreen(
+            api: _api,
+            localize: _t,
+            onNotice: _notice,
+          ),
+          userManagementBuilder: (_) => AdminUsersScreen(
+            api: _adminApi,
+            tokenChanges: widget.tokenChanges,
+          ),
+          appointmentManagementBuilder: (_) => AdminAppointmentsScreen(
+            api: _adminApi,
+            tokenChanges: widget.tokenChanges,
+          ),
         ),
       ),
     );

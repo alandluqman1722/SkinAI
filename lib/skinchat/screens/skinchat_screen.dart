@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:skin_ai/design/app_components.dart';
 import 'package:skin_ai/design/app_design_system.dart';
 import 'package:skin_ai/image_picker_feedback.dart';
 import 'package:skin_ai/localization/app_localizations.dart';
@@ -22,7 +23,7 @@ const Map<String, Map<String, String>> _copy = {
     'uploadHint': 'Images are stored privately and are never analyzed by AI.',
     'image': 'Image context',
     'analysis': 'Initial image analysis',
-    'notAnalyzed': 'Images are not sent to Gemini or analyzed.',
+    'notAnalyzed': 'Images are stored privately and are not analyzed by SkinChat.',
     'remove': 'Delete conversation',
     'cancel': 'Cancel',
     'delete': 'Delete',
@@ -31,10 +32,11 @@ const Map<String, Map<String, String>> _copy = {
     'deleteMessageConfirm': 'Delete this message and its paired reply?',
     'emptyHistory': 'No conversations yet.',
     'emptyChat': 'Your conversation will appear here.',
-    'generalMode': 'Ask a general skin-health question. No scan is attached.',
+    'generalMode':
+        'General skincare answers are unavailable right now. Saved conversation history remains available.',
     'scanAttached': 'Attached scan (screening result)',
     'scanId': 'Scan ID',
-    'condition': 'Detected result',
+    'condition': 'Possible pattern',
     'confidence': 'Model confidence',
     'scanDate': 'Scan date',
     'bodyLocation': 'Body area',
@@ -72,7 +74,7 @@ const Map<String, Map<String, String>> _copy = {
         'وێنەکان بە تایبەتی هەڵدەگیرێن و بە زیرەکی دەستکرد شیکاری ناکرێن.',
     'image': 'وێنەی گفتوگۆ',
     'analysis': 'شیکردنەوەی سەرەتایی',
-    'notAnalyzed': 'وێنەکان بۆ Gemini نانێردرێن و شیکاری ناکرێن.',
+    'notAnalyzed': 'وێنەکان بە تایبەتی هەڵدەگیرێن و لە SkinChat شیکار ناکرێن.',
     'remove': 'سڕینەوەی گفتوگۆ',
     'cancel': 'پاشگەزبوونەوە',
     'delete': 'بسڕەوە',
@@ -82,10 +84,10 @@ const Map<String, Map<String, String>> _copy = {
     'emptyHistory': 'هێشتا هیچ گفتوگۆیەک نییە.',
     'emptyChat': 'گفتوگۆکەت لێرە دەردەکەوێت.',
     'generalMode':
-        'دەتوانیت پرسیاری گشتیی تەندروستی پێست بکەیت. هیچ سکانێک پەیوەست نییە.',
+        'وەڵامی گشتیی چاودێری پێست ئێستا بەردەست نییە. مێژووی گفتوگۆی پاشەکەوتکراو بەردەستە.',
     'scanAttached': 'سکانی پەیوەستکراو (ئەنجامی پشکنین)',
     'scanId': 'ژمارەی سکان',
-    'condition': 'ئەنجامی دۆزراوە',
+    'condition': 'شێوازی ئەگەری',
     'confidence': 'متمانەی مۆدێل',
     'scanDate': 'بەرواری سکان',
     'bodyLocation': 'شوێنی لەش',
@@ -121,7 +123,7 @@ const Map<String, Map<String, String>> _copy = {
         'وێنە ب تایبەتی دهێنە هەڵگرتن و ب هووشێ دەستکرد ناهێنە شیکرن.',
     'image': 'وێنەیا گفتوگۆیێ',
     'analysis': 'شیکرنا دەستپێکێ',
-    'notAnalyzed': 'وێنە بۆ Gemini ناهێنە فرێکرن و شیکاری ناهێنە کرن.',
+    'notAnalyzed': 'وێنە ب تایبەتی دهێنە هەڵگرتن و ل SkinChat شیکار ناکرێن.',
     'remove': 'گفتوگۆیێ ژێببە',
     'cancel': 'بتال بکە',
     'delete': 'ژێببە',
@@ -131,10 +133,10 @@ const Map<String, Map<String, String>> _copy = {
     'emptyHistory': 'هێشتا چ گفتوگۆ نینە.',
     'emptyChat': 'گفتوگۆیا تە ل ڤێرێ دیار دبیت.',
     'generalMode':
-        'دکاریت پرسیارێن گشتی دەر بارێ تەندروستیا پێستی بکەی. چ سکانەک نەهاتیە پەیوەستکرن.',
+        'بەرسڤێن گشتی یێن چاڤدێریا پێستی نوکە بەردەست نینن. مێژوویا گفتوگۆیێن پاراستی بەردەستە.',
     'scanAttached': 'سکانێ پەیوەستکری (ئەنجامێ پشکنینێ)',
     'scanId': 'ژمارا سکانێ',
-    'condition': 'ئەنجامێ هاتیە دیتن',
+    'condition': 'شێوازا ئەگەری',
     'confidence': 'باوەریا مۆدێلێ',
     'scanDate': 'بەروارێ سکانێ',
     'bodyLocation': 'شوێنێ لەشی',
@@ -171,7 +173,7 @@ const Map<String, Map<String, String>> _copy = {
         'تُحفظ الصور بخصوصية ولا يرسلها التطبيق إلى الذكاء الاصطناعي.',
     'image': 'سياق الصورة',
     'analysis': 'التحليل الأولي للصورة',
-    'notAnalyzed': 'لا تُرسل الصور إلى Gemini ولا تُحلل.',
+    'notAnalyzed': 'تُحفظ الصور بخصوصية ولا يحللها SkinChat.',
     'remove': 'حذف المحادثة',
     'cancel': 'إلغاء',
     'delete': 'حذف',
@@ -180,10 +182,11 @@ const Map<String, Map<String, String>> _copy = {
     'deleteMessageConfirm': 'هل تريد حذف هذه الرسالة والرد المرتبط بها؟',
     'emptyHistory': 'لا توجد محادثات بعد.',
     'emptyChat': 'ستظهر محادثتك هنا.',
-    'generalMode': 'يمكنك طرح سؤال عام عن صحة البشرة. لا يوجد فحص مرفق.',
+    'generalMode':
+        'إجابات العناية العامة بالبشرة غير متاحة حاليًا. يظل سجل المحادثة المحفوظ متاحًا.',
     'scanAttached': 'الفحص المرفق (نتيجة أولية)',
     'scanId': 'معرّف الفحص',
-    'condition': 'النتيجة المكتشفة',
+    'condition': 'نمط محتمل',
     'confidence': 'ثقة النموذج',
     'scanDate': 'تاريخ الفحص',
     'bodyLocation': 'منطقة الجسم',
@@ -669,11 +672,11 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                           final item = _conversations[index];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: const Color(0xFF00C9E8)
-                                  .withValues(alpha: .14),
+                              backgroundColor:
+                                  AppDesignTokens.blue.withValues(alpha: .14),
                               child: const Icon(
                                 Icons.forum_outlined,
-                                color: Color(0xFF00A8D0),
+                                color: AppDesignTokens.blue,
                               ),
                             ),
                             title: Text(
@@ -814,34 +817,40 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     final compactViewport = MediaQuery.sizeOf(context).height < 600;
-    final background = dark ? const Color(0xFF07111F) : const Color(0xFFF4F8FC);
-    final panel = dark ? const Color(0xFF101D2D) : Colors.white;
-    const accent = Color(0xFF12C7E8);
+    final background =
+        dark ? AppDesignTokens.darkBackground : AppDesignTokens.lightBackground;
+    final panel =
+        dark ? AppDesignTokens.darkSurface : AppDesignTokens.lightSurface;
+    const accent = AppDesignTokens.blue;
     return Directionality(
       textDirection: _rtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: background,
         appBar: AppBar(
-          backgroundColor: background,
+          backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
-          titleSpacing: 8,
+          elevation: AppElevation.flat,
+          scrolledUnderElevation: AppElevation.flat,
+          flexibleSpace: const GlassSurface(
+            borderRadius: BorderRadius.zero,
+            child: SizedBox.expand(),
+          ),
+          titleSpacing: AppSpacing.x2,
           title: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: AppSpacing.x12 + AppSpacing.x2,
+                height: AppSpacing.x12 + AppSpacing.x2,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF13C7E8), Color(0xFF5865E8)],
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                  color: AppDesignTokens.blue,
                 ),
                 child: const Icon(
                   Icons.health_and_safety_outlined,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: AppSpacing.x3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -897,8 +906,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                             SliverToBoxAdapter(
                               child: _scanContextCard(panel, accent, dark),
                             ),
-                          if (_conversation != null &&
-                              _activeScanContext == null)
+                          if (_conversation != null)
                             SliverToBoxAdapter(
                               child: _generalModeNotice(panel),
                             ),
@@ -915,14 +923,14 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                               hasScrollBody: false,
                               child: Center(
                                 child: CircularProgressIndicator(
-                                  color: Color(0xFF12C7E8),
+                                  color: accent,
                                 ),
                               ),
                             )
                           else if (_messages.isEmpty)
                             SliverFillRemaining(
                               hasScrollBody: false,
-                              child: _emptyChat(panel, dark),
+                              child: _emptyChat(accent),
                             )
                           else
                             _messageList(panel, accent, dark),
@@ -932,7 +940,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                     if (_conversation != null &&
                         _messages.isEmpty &&
                         !keyboardOpen)
-                      _suggestions(panel),
+                      _suggestions(panel, accent),
                     if (_sending || _messageFailed) _messageStatus(),
                     SafeArea(
                       top: false,
@@ -974,7 +982,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
           LinearProgressIndicator(
             value: _uploadProgress,
             minHeight: 2,
-            color: const Color(0xFF12C7E8),
+            color: AppDesignTokens.blue,
           ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.x2),
@@ -1018,28 +1026,34 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
       );
 
   Widget _welcomeCard(Color panel, Color accent) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          AppSpacing.x4,
+          AppSpacing.x3,
+          AppSpacing.x4,
+          AppSpacing.x2,
+        ),
         child: Material(
           color: panel,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(AppRadius.extraLarge),
           child: InkWell(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(AppRadius.extraLarge),
             onTap: _startConversation,
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(AppSpacing.x4),
               child: Row(
                 children: [
-                  Icon(Icons.add_a_photo_outlined, color: accent, size: 30),
-                  const SizedBox(width: 14),
+                  Icon(Icons.add_a_photo_outlined,
+                      color: accent, size: AppSpacing.x6),
+                  const SizedBox(width: AppSpacing.x3),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           t('upload'),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppSpacing.x1),
                         Text(
                           t('uploadHint'),
                           style: Theme.of(context).textTheme.bodySmall,
@@ -1058,12 +1072,17 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   Widget _imageContextCard(Color panel, Color accent, bool dark) {
     final conversation = _conversation!;
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(14, 8, 14, 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.x4,
+        AppSpacing.x2,
+        AppSpacing.x4,
+        AppSpacing.x2,
+      ),
       child: Container(
-        padding: const EdgeInsets.all(11),
+        padding: const EdgeInsets.all(AppSpacing.x3),
         decoration: BoxDecoration(
           color: panel,
-          borderRadius: BorderRadius.circular(19),
+          borderRadius: BorderRadius.circular(AppRadius.large),
           border: Border.all(
             color: accent.withValues(alpha: dark ? .24 : .18),
           ),
@@ -1077,33 +1096,34 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                         context: context,
                         builder: (_) => Dialog(
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.large),
                             child:
                                 Image.memory(_imageBytes!, fit: BoxFit.contain),
                           ),
                         ),
                       ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(AppRadius.medium),
                 child: SizedBox(
-                  width: 64,
-                  height: 64,
+                  width: AppSpacing.x12 + AppSpacing.x4,
+                  height: AppSpacing.x12 + AppSpacing.x4,
                   child: _imageBytes == null
                       ? Icon(Icons.image_outlined, color: accent)
                       : Image.memory(_imageBytes!, fit: BoxFit.cover),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.x3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     t('image'),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: AppSpacing.x1),
                   Text(
                     conversation.imageUploadTimestamp == null
                         ? t('uploaded')
@@ -1112,7 +1132,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                   ),
                   if (conversation.hasImageReference &&
                       !conversation.hasImage) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.x1),
                     Text(
                       t('imageUnavailable'),
                       maxLines: 2,
@@ -1122,7 +1142,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                   ],
                   if (conversation.hasImage &&
                       conversation.initialAnalysis?.isNotEmpty == true) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.x1),
                     Text(
                       conversation.initialAnalysis!,
                       maxLines: 2,
@@ -1229,8 +1249,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${scan.detectedCondition} · '
-                '${scan.confidence.toStringAsFixed(1)}%',
+                '${t('condition')}: ${scan.detectedCondition}',
                 key: const ValueKey('attached-scan-title'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1312,10 +1331,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                 const SizedBox(height: AppSpacing.x1),
                 SelectableText('${t('scanId')}: ${scan.scanId}'),
                 Text('${t('condition')}: ${scan.detectedCondition}'),
-                Text(
-                  '${t('confidence')}: '
-                  '${scan.confidence.toStringAsFixed(1)}%',
-                ),
+                Text('${t('possiblePattern')}: ${scan.detectedCondition}'),
                 Text('${t('scanDate')}: ${_formatDate(scan.scanDate)}'),
                 if (scan.bodyLocation?.isNotEmpty == true)
                   Text('${t('bodyLocation')}: ${scan.bodyLocation}'),
@@ -1402,15 +1418,20 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
   }
 
   Widget _generalModeNotice(Color panel) => Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 4),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          AppSpacing.x4,
+          AppSpacing.x2,
+          AppSpacing.x4,
+          AppSpacing.x1,
+        ),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppSpacing.x3),
           decoration: BoxDecoration(
             color: panel,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.medium),
             border: Border.all(
-              color: const Color(0xFF12C7E8).withValues(alpha: .18),
+              color: AppDesignTokens.blue.withValues(alpha: .18),
             ),
           ),
           child: Text(
@@ -1421,7 +1442,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         ),
       );
 
-  Widget _emptyChat(Color panel, bool dark) => Center(
+  Widget _emptyChat(Color accent) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.x6),
           child: Column(
@@ -1429,8 +1450,8 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
             children: [
               Icon(
                 Icons.chat_bubble_outline_rounded,
-                size: 42,
-                color: const Color(0xFF12C7E8).withValues(alpha: .8),
+                size: AppSpacing.x8,
+                color: accent,
               ),
               const SizedBox(height: AppSpacing.x3),
               Text(t('emptyChat'), textAlign: TextAlign.center),
@@ -1485,10 +1506,15 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                           ? 760
                           : MediaQuery.sizeOf(context).width * .84,
                     ),
-                    margin: const EdgeInsets.symmetric(vertical: 5),
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                    margin: const EdgeInsets.symmetric(vertical: AppSpacing.x1),
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      AppSpacing.x3,
+                      AppSpacing.x3,
+                      AppSpacing.x3,
+                      AppSpacing.x2,
+                    ),
                     decoration: BoxDecoration(
-                      color: isUser ? const Color(0xFF1469E8) : panel,
+                      color: isUser ? accent : panel,
                       borderRadius: BorderRadiusDirectional.only(
                         topStart: const Radius.circular(18),
                         topEnd: const Radius.circular(18),
@@ -1514,21 +1540,18 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                                 const SizedBox.shrink(),
                             styleSheet: MarkdownStyleSheet(
                               p: TextStyle(color: messageColor, height: 1.45),
-                              h1: TextStyle(
-                                color: messageColor,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                              ),
-                              h2: TextStyle(
-                                color: messageColor,
-                                fontSize: 19,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              h3: TextStyle(
-                                color: messageColor,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              h1: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(color: messageColor),
+                              h2: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(color: messageColor),
+                              h3: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(color: messageColor),
                               strong: TextStyle(
                                 color: messageColor,
                                 fontWeight: FontWeight.w800,
@@ -1546,7 +1569,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppSpacing.x1),
                         Text(
                           '${message.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
                           '${message.createdAt.toLocal().minute.toString().padLeft(2, '0')}',
@@ -1554,7 +1577,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                             color: isUser
                                 ? Colors.white70
                                 : Theme.of(context).textTheme.bodySmall?.color,
-                            fontSize: 10,
+                            fontSize: AppTypography.caption,
                           ),
                         ),
                       ],
@@ -1568,7 +1591,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
         ),
       );
 
-  Widget _suggestions(Color panel) {
+  Widget _suggestions(Color panel, Color accent) {
     const suggestions = ['suggest1', 'suggest2', 'suggest3'];
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -1587,7 +1610,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
               ActionChip(
                 backgroundColor: panel,
                 side: BorderSide(
-                  color: const Color(0xFF12C7E8).withValues(alpha: .3),
+                  color: accent.withValues(alpha: .3),
                 ),
                 label: Text(
                   t(suggestions[index]),
@@ -1625,7 +1648,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
               size: 15,
               color: dark ? Colors.white54 : Colors.black54,
             ),
-            const SizedBox(width: 7),
+            const SizedBox(width: AppSpacing.x2),
             Expanded(
               child: Text(
                 t('disclaimer'),
@@ -1665,7 +1688,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
             onPressed: _uploading ? null : _chooseImage,
             icon: const Icon(Icons.add_photo_alternate_outlined),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.x2),
           Expanded(
             child: TextField(
               controller: _messageController,
@@ -1692,19 +1715,19 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                   vertical: 13,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   borderSide: BorderSide.none,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 7),
+          const SizedBox(width: AppSpacing.x2),
           IconButton.filled(
             tooltip: t('send'),
             onPressed: enabled ? _sendMessage : null,
             style: IconButton.styleFrom(
               backgroundColor: accent,
-              foregroundColor: const Color(0xFF06202B),
+              foregroundColor: Colors.white,
             ),
             icon: _sending
                 ? const SizedBox(
@@ -1712,7 +1735,7 @@ class _SkinChatScreenState extends State<SkinChatScreen> {
                     height: 19,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFF06202B),
+                      color: Colors.white,
                     ),
                   )
                 : const Icon(Icons.arrow_upward_rounded),

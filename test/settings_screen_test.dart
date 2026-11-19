@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skin_ai/design/app_components.dart';
 import 'package:skin_ai/local_reminder_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_ai/main.dart';
@@ -86,7 +87,7 @@ void main() {
           home: MediaQuery(
             data: MediaQueryData(
               size: Size(320, 568),
-              textScaler: TextScaler.linear(1.3),
+              textScaler: TextScaler.linear(2.0),
             ),
             child: Scaffold(
               body: SettingsScreen(onLogout: _noopLogout),
@@ -122,12 +123,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     final destinations =
-        tester.widget<NavigationBar>(find.byType(NavigationBar)).destinations;
+        tester.widget<GlassBottomNav>(find.byType(GlassBottomNav)).items;
     expect(destinations, hasLength(5));
     expect(
-      destinations.map(
-        (destination) => (destination as NavigationDestination).label,
-      ),
+      destinations.map((destination) => destination.label),
       [
         'Home',
         'History',
@@ -138,10 +137,12 @@ void main() {
     );
 
     for (final index in [1, 2, 3, 4, 0]) {
-      await tester.tap(find.byType(NavigationDestination).at(index));
+      await tester.tap(find.byKey(ValueKey('app-bottom-nav-$index')));
       await tester.pump();
       expect(
-        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+        tester
+            .widget<GlassBottomNav>(find.byType(GlassBottomNav))
+            .selectedIndex,
         index,
       );
       if (index == 3) {
@@ -151,14 +152,14 @@ void main() {
         await tester.pump();
         expect(
           tester
-              .widget<NavigationBar>(find.byType(NavigationBar))
+              .widget<GlassBottomNav>(find.byType(GlassBottomNav))
               .selectedIndex,
           3,
         );
       }
     }
 
-    await tester.tap(find.byType(NavigationDestination).at(4));
+    await tester.tap(find.byKey(const ValueKey('app-bottom-nav-4')));
     await tester.pump();
     expect(find.text('SKIN & AI'), findsOneWidget);
 
@@ -180,11 +181,9 @@ void main() {
       await controller.setLang(language);
       await tester.pump();
       final localizedDestinations =
-          tester.widget<NavigationBar>(find.byType(NavigationBar)).destinations;
+          tester.widget<GlassBottomNav>(find.byType(GlassBottomNav)).items;
       expect(
-        localizedDestinations.map(
-          (destination) => (destination as NavigationDestination).label,
-        ),
+        localizedDestinations.map((destination) => destination.label),
         [
           controller.t('navHome'),
           controller.t('navHistory'),
@@ -194,14 +193,11 @@ void main() {
         ],
       );
       expect(
-        localizedDestinations.map(
-          (destination) =>
-              ((destination as NavigationDestination).icon as Icon).icon,
-        ),
+        localizedDestinations.map((destination) => destination.icon),
         [
           Icons.home_outlined,
-          Icons.history,
-          Icons.center_focus_weak,
+          Icons.history_outlined,
+          Icons.center_focus_weak_rounded,
           Icons.checklist_outlined,
           Icons.settings_outlined,
         ],
@@ -237,9 +233,14 @@ void main() {
 
     expect(tester.takeException(), isNull);
     final destinations =
-        tester.widget<NavigationBar>(find.byType(NavigationBar)).destinations;
-    expect((destinations[3] as NavigationDestination).label, 'ڕۆتین');
-    final bottomNavigation = find.byType(NavigationBar);
+        tester.widget<GlassBottomNav>(find.byType(GlassBottomNav)).items;
+    expect(destinations[3].label, 'ڕۆتین');
+    final bottomNavigation = find.byType(GlassBottomNav);
+    final navLabels = tester.widgetList<Text>(
+      find.descendant(of: bottomNavigation, matching: find.byType(Text)),
+    );
+    expect(navLabels, hasLength(5));
+    expect(navLabels.every((label) => label.maxLines == 1), isTrue);
     expect(
       tester
           .getSize(find.descendant(
@@ -308,7 +309,7 @@ void main() {
           home: MediaQuery(
             data: MediaQueryData(
               size: Size(320, 568),
-              textScaler: TextScaler.linear(1.2),
+              textScaler: TextScaler.linear(2.0),
             ),
             child: DashboardScreen(),
           ),
@@ -318,7 +319,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.text('Recent scans'), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(GlassBottomNav), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -347,6 +348,8 @@ void main() {
         conf: 68,
         mel: false,
         ts: 200,
+        summary:
+            'A short history preview followed by a detailed summary ending in END_MARKER.',
       ),
     );
 
@@ -362,6 +365,15 @@ void main() {
 
     expect(find.text('View full details'), findsOneWidget);
     expect(find.text('eczema'), findsWidgets);
+    final summaryDetails = find.byKey(
+      const ValueKey('history-summary-details'),
+    );
+    expect(find.textContaining('END_MARKER'), findsNothing);
+    await tester.ensureVisible(summaryDetails);
+    await tester.tap(summaryDetails);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('END_MARKER'), findsOneWidget);
+
     await tester.enterText(find.byType(TextField).first, 'acne');
     await tester.pump();
 

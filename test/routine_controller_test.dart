@@ -429,7 +429,7 @@ void main() {
         home: MediaQuery(
           data: const MediaQueryData(
             size: Size(320, 568),
-            textScaler: TextScaler.linear(1.3),
+            textScaler: TextScaler.linear(2.0),
           ),
           child: Directionality(
             textDirection: TextDirection.rtl,
@@ -525,7 +525,7 @@ void main() {
             find.byKey(const ValueKey('notification-center-content')),
           )
           .width,
-      1200,
+      1100,
     );
     expect(
       tester.getTopLeft(find.byType(DropdownButtonFormField<String>)).dx,
@@ -550,7 +550,7 @@ void main() {
         home: MediaQuery(
           data: const MediaQueryData(
             size: Size(320, 568),
-            textScaler: TextScaler.linear(1.3),
+            textScaler: TextScaler.linear(2.0),
           ),
           child: Directionality(
             textDirection: TextDirection.rtl,

@@ -1,5 +1,7 @@
 import logging
 import os
+import threading
+import time
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
@@ -17,6 +19,10 @@ _logger = logging.getLogger(__name__)
 _authentication_unavailable_detail = (
     "Authentication is temporarily unavailable. Please try again later."
 )
+_ADMIN_RATE_WINDOW_SECONDS = 60.0
+_ADMIN_RATE_REQUEST_LIMIT = 60
+_admin_rate_lock = threading.Lock()
+_admin_rate_requests: dict[str, list[float]] = {}
 
 
 def require_firebase_user(
@@ -195,4 +201,31 @@ def require_firebase_user(
             detail="This account is not permitted to use the service.",
         )
 
+    return claims
+
+
+def require_admin(
+    claims: dict[str, Any] = Depends(require_firebase_user),
+) -> dict[str, Any]:
+    if claims.get("admin") is not True:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access is required.",
+        )
+    now = time.monotonic()
+    uid = claims["uid"]
+    with _admin_rate_lock:
+        recent = [
+            request_time
+            for request_time in _admin_rate_requests.get(uid, [])
+            if now - request_time < _ADMIN_RATE_WINDOW_SECONDS
+        ]
+        if len(recent) >= _ADMIN_RATE_REQUEST_LIMIT:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many admin requests. Please retry shortly.",
+                headers={"Retry-After": str(int(_ADMIN_RATE_WINDOW_SECONDS))},
+            )
+        recent.append(now)
+        _admin_rate_requests[uid] = recent
     return claims

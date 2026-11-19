@@ -50,7 +50,12 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
         builder: (context, _) => Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.x4,
+                AppSpacing.x3,
+                AppSpacing.x4,
+                0,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -118,11 +123,16 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
     final scheme = theme.colorScheme;
     final selectedTasks = controller.tasksForDay(_selectedDay);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.x4,
+        AppSpacing.x4,
+        AppSpacing.x4,
+        AppSpacing.x8 - AppSpacing.x1,
+      ),
       children: [
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(AppSpacing.x4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -145,17 +155,17 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.x3),
                 TweenAnimationBuilder<double>(
                   tween: Tween<double>(
                     begin: 0,
                     end: weekTotal == 0 ? 0 : weekDone / weekTotal,
                   ),
-                  duration: const Duration(milliseconds: 350),
+                  duration: AppMotion.slow,
                   builder: (context, value, _) => LinearProgressIndicator(
                     value: value,
                     minHeight: 8,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.small),
                     color: widget.accentColor,
                     backgroundColor: scheme.surfaceContainerHighest,
                   ),
@@ -173,8 +183,8 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                       borderRadius: BorderRadius.circular(14),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 3,
-                          vertical: 4,
+                          horizontal: AppSpacing.x1,
+                          vertical: AppSpacing.x1,
                         ),
                         child: Column(
                           children: [
@@ -187,11 +197,11 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: AppSpacing.x2),
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              width: 34,
-                              height: 34,
+                              duration: AppMotion.fast,
+                              width: AppSpacing.x8 + AppSpacing.x1 / 2,
+                              height: AppSpacing.x8 + AppSpacing.x1 / 2,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: selected
@@ -215,13 +225,15 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 5),
+                            const SizedBox(height: AppSpacing.x1),
                             SizedBox(
-                              width: 28,
+                              width: AppSpacing.x8 - AppSpacing.x1,
                               child: LinearProgressIndicator(
                                 value: progress,
                                 minHeight: 3,
-                                borderRadius: BorderRadius.circular(3),
+                                borderRadius: BorderRadius.circular(
+                                  AppSpacing.x1 - 1,
+                                ),
                                 color: widget.accentColor,
                                 backgroundColor: scheme.surfaceContainerHighest,
                               ),
@@ -236,7 +248,7 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.x3),
         Row(
           children: [
             Expanded(
@@ -246,7 +258,7 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                 Icons.task_alt_rounded,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.x3),
             Expanded(
               child: _statCard(
                 _t('currentStreak'),
@@ -254,7 +266,7 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                 Icons.local_fire_department_rounded,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.x3),
             Expanded(
               child: _statCard(
                 _t('consistency'),
@@ -264,7 +276,7 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.x3),
         Row(
           children: [
             Expanded(
@@ -307,12 +319,12 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(11),
+        padding: const EdgeInsets.all(AppSpacing.x3),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, size: 19, color: widget.accentColor),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.x2),
             Text(
               value,
               maxLines: 1,
@@ -321,7 +333,7 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: AppSpacing.x1),
             Text(
               title,
               maxLines: 2,
@@ -342,7 +354,12 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
     final total = tasks.length;
     final completed = widget.controller.completedCount(day);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.x4,
+        AppSpacing.x4,
+        AppSpacing.x4,
+        AppSpacing.x6,
+      ),
       children: [
         if (showProgress) ...[
           _dailyProgressCard(completed: completed, total: total),
@@ -366,19 +383,19 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
     final progress = total == 0 ? 0.0 : completed / total;
     return Card(
       key: const ValueKey('routine-daily-progress'),
-            child: Padding(
+      child: Padding(
         padding: const EdgeInsets.all(AppSpacing.x4),
         child: Row(
-                children: [
+          children: [
             SizedBox(
-              width: 64,
-              height: 64,
+              width: AppSpacing.x12 + AppSpacing.x4,
+              height: AppSpacing.x12 + AppSpacing.x4,
               child: Stack(
                 alignment: Alignment.center,
-                    children: [
+                children: [
                   TweenAnimationBuilder<double>(
                     tween: Tween<double>(begin: 0, end: progress),
-                    duration: const Duration(milliseconds: 350),
+                    duration: AppMotion.slow,
                     builder: (context, value, _) => CircularProgressIndicator(
                       value: value,
                       strokeWidth: 6,
@@ -390,30 +407,30 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                   Text(
                     '${(progress * 100).round()}%',
                     style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
-                      ),
+              ),
             ),
             const SizedBox(width: AppSpacing.x3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                      Text(
+                  Text(
                     _t('todaysProgress'),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.x1),
                   Text(
                     '$completed / $total ${_t('completed')}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
-                  ),
                     ),
+                  ),
                   const SizedBox(height: AppSpacing.x2),
                   Wrap(
                     spacing: AppSpacing.x3,
@@ -424,8 +441,8 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                         '${total - completed} ${_t('remaining')}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                        ),
+                      ),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -439,19 +456,19 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
                             child: Text(
                               '${widget.controller.currentStreak} ${_t('dayStreak')}',
                               softWrap: true,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
                           ),
                         ],
                       ),
+                    ],
+                  ),
                 ],
               ),
-                ],
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -513,7 +530,7 @@ class _RoutineDashboardScreenState extends State<RoutineDashboardScreen> {
               child: ListTile(
                 onTap: () => _toggleTask(task, day),
                 leading: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
+                  duration: AppMotion.fast,
                   child: Icon(
                     task.isCompletedOn(day)
                         ? Icons.check_circle_rounded
@@ -968,7 +985,7 @@ class _WidgetGalleryScreenState extends State<WidgetGalleryScreen> {
                     borderRadius: BorderRadius.circular(20),
                     onTap: () => _update(customization.copyWith(style: style)),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
+                      duration: AppMotion.fast,
                       padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface,

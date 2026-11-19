@@ -6,7 +6,7 @@ import 'package:printing/printing.dart';
 
 Future<Uint8List> buildScanReportPdf({
   required String result,
-  required double confidencePercent,
+  required String concernLevel,
   required DateTime scannedAt,
   required String summary,
   required String Function(String key, {Map<String, String> arguments})
@@ -15,6 +15,14 @@ Future<Uint8List> buildScanReportPdf({
   final document = pw.Document();
   final timestamp =
       scannedAt.toLocal().toIso8601String().replaceFirst('T', ' ');
+  final concernKey = switch (concernLevel) {
+    'low' => 'concernLow',
+    'moderate' => 'concernModerate',
+    'high' => 'concernHigh',
+    'prompt_in_person' => 'concernPrompt',
+    'insufficient' => 'concernInsufficient',
+    _ => 'concernModerate',
+  };
 
   document.addPage(
     pw.MultiPage(
@@ -42,11 +50,8 @@ Future<Uint8List> buildScanReportPdf({
           ),
         ),
         pw.Divider(),
-        _detailRow(localize('result'), result),
-        _detailRow(
-          localize('providerConfidence'),
-          '${confidencePercent.toStringAsFixed(1)}%',
-        ),
+        _detailRow(localize('possiblePattern'), result),
+        _detailRow(localize('concernLevel'), localize(concernKey)),
         _detailRow(localize('scanTime'), timestamp),
         pw.SizedBox(height: 20),
         pw.Text(

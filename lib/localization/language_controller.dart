@@ -54,7 +54,8 @@ class LanguageController extends ChangeNotifier {
       return;
     }
     _language = restored;
-    if (stored != null && stored.toLowerCase() != restored.locale.languageCode) {
+    if (stored != null &&
+        stored.toLowerCase() != restored.locale.languageCode) {
       await preferences.setString('lang', restored.locale.languageCode);
     }
   }

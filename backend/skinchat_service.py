@@ -26,10 +26,9 @@ from .private_image_storage import (
 from .skinchat_ai import (
     classify_question,
     daily_message_limit,
-    generate_response,
-    gemini_enabled,
     policy_response,
     selected_language,
+    skincare_unavailable_response,
 )
 
 router = APIRouter(
@@ -50,12 +49,10 @@ _rate_lock = threading.Lock()
 _rate_requests: dict[str, list[float]] = {}
 _client_message_id_pattern = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 _IMAGE_CONTEXT_TRANSLATIONS = {
-    "ku": "ئەم وێنەیە بە پارێزراوی هەڵگیراوە، بەڵام بۆ Gemini نانێردرێت و "
-    "شیکردنەوەی وێنەیی ئەنجام نادرێت.",
-    "bad": "ئەڤ وێنە ب پاراستی هاتیە هەڵگرتن، لێ بۆ Gemini ناهێتە فرێکرن و "
-    "شیکرنا وێنەیی ناهێتە ئەنجامدان.",
-    "ar": "تم حفظ الصورة بأمان، لكنها لا تُرسل إلى Gemini ولا تُحلل بصريًا.",
-    "en": "This image is stored securely but is never sent to Gemini or visually analyzed.",
+    "ku": "ئەم وێنەیە بە پارێزراوی هەڵگیراوە، بەڵام لە SkinChat شیکار ناکرێت.",
+    "bad": "ئەڤ وێنە ب پاراستی هاتیە هەڵگرتن، لێ ل SkinChat شیکار ناکرێت.",
+    "ar": "تم حفظ الصورة بأمان، لكنها لا تُحلل في SkinChat.",
+    "en": "This image is stored securely but is not analyzed by SkinChat.",
 }
 _SUPPORTED_LANGUAGES = {"en", "ar", "ku", "bad"}
 
@@ -621,19 +618,7 @@ async def send_message(
     if category != "skincare":
         answer = policy_response(category, language)
     else:
-        if not gemini_enabled():
-            raise HTTPException(
-                status_code=503,
-                detail="SkinChat AI is not enabled on the server.",
-            )
-        response_options: dict[str, Any] = {
-            "question": request.content.strip(),
-            "history": history,
-            "language": language,
-        }
-        if isinstance(scan_context, dict):
-            response_options["scan_context"] = scan_context
-        answer = await generate_response(**response_options)
+        answer = skincare_unavailable_response(language)
     assistant_id = f"assistant-{client_id}"
     assistant_record = {
         "role": "assistant",
@@ -650,7 +635,7 @@ async def send_message(
         _logger.error("SkinChat reply persistence failed (%s).", type(error).__name__)
         raise HTTPException(
             status_code=503,
-            detail="The AI answered, but the reply could not be saved.",
+            detail="The reply could not be saved.",
         ) from error
     return {
         "message": {

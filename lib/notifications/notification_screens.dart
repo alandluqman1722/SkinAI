@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../design/app_components.dart';
 import '../design/app_design_system.dart';
 import '../localization/app_localizations.dart';
 import '../local_reminder_service.dart';
@@ -91,7 +92,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         }
         final isExpanded = AppBreakpoints.of(context) == AppViewport.expanded;
         final searchField = Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x4,
+            AppSpacing.x3,
+            AppSpacing.x4,
+            AppSpacing.x2,
+          ),
           child: TextField(
             controller: _searchController,
             onChanged: (_) => setState(() {}),
@@ -109,21 +115,26 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                       icon: const Icon(Icons.close_rounded),
                     ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.medium),
               ),
               isDense: true,
             ),
           ),
         );
         final categoryField = Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 8),
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            AppSpacing.x4,
+            0,
+            AppSpacing.x4,
+            AppSpacing.x2,
+          ),
           child: DropdownButtonFormField<String>(
             initialValue: _categoryFilter,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: _t('category'),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.medium),
               ),
               isDense: true,
             ),
@@ -159,9 +170,15 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
-            backgroundColor: theme.scaffoldBackgroundColor,
+            backgroundColor: Colors.transparent,
             foregroundColor: theme.colorScheme.onSurface,
-            elevation: 0,
+            elevation: AppElevation.flat,
+            scrolledUnderElevation: AppElevation.flat,
+            surfaceTintColor: Colors.transparent,
+            flexibleSpace: const GlassSurface(
+              borderRadius: BorderRadius.zero,
+              child: SizedBox.expand(),
+            ),
             automaticallyImplyLeading: false,
             leading: IconButton(
               tooltip: _t('back'),
@@ -208,36 +225,36 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                 key: const ValueKey('notification-center-content'),
                 width: AppBreakpoints.contentWidth(constraints.maxWidth),
                 child: Column(
-            children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
                   children: [
-                    for (final filter in [
-                      'all',
-                      'unread',
-                      'read',
-                      'important',
-                    ])
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          for (final filter in [
+                            'all',
+                            'unread',
+                            'read',
+                            'important',
+                          ])
                             SizedBox(
                               height: 48,
                               child: Padding(
                                 padding:
                                     const EdgeInsetsDirectional.only(end: 8),
                                 child: Center(
-                        child: ChoiceChip(
-                          label: Text(_t(filter)),
-                          selected: _filter == filter,
+                                  child: ChoiceChip(
+                                    label: Text(_t(filter)),
+                                    selected: _filter == filter,
                                     onSelected: (_) =>
                                         setState(() => _filter = filter),
-                    ),
-                  ),
-                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                  ),
-                ),
+                    ),
                     if (isExpanded)
                       Row(
                         children: [
@@ -245,52 +262,52 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                           SizedBox(
                             width: 300,
                             child: categoryField,
-              ),
+                          ),
                         ],
                       )
                     else ...[
                       searchField,
                       categoryField,
                     ],
-              Expanded(
-                child: items.isEmpty
-                    ? _emptyState(
-                        search.isNotEmpty
-                            ? 'noSearchResults'
-                            : _filter != 'all' || _categoryFilter != 'all'
-                                ? 'noFilteredNotifications'
-                                : 'emptyNotifications',
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
-                        children: [
-                          for (final entry in groups.entries) ...[
-                            Padding(
+                    Expanded(
+                      child: items.isEmpty
+                          ? _emptyState(
+                              search.isNotEmpty
+                                  ? 'noSearchResults'
+                                  : _filter != 'all' || _categoryFilter != 'all'
+                                      ? 'noFilteredNotifications'
+                                      : 'emptyNotifications',
+                            )
+                          : ListView(
+                              padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
+                              children: [
+                                for (final entry in groups.entries) ...[
+                                  Padding(
                                     padding:
                                         const EdgeInsetsDirectional.fromSTEB(
-                                4,
-                                10,
-                                4,
-                                4,
-                              ),
-                              child: Text(
-                                entry.key,
+                                      4,
+                                      10,
+                                      4,
+                                      4,
+                                    ),
+                                    child: Text(
+                                      entry.key,
                                       style:
                                           theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w800,
                                         color:
                                             theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
+                                      ),
+                                    ),
+                                  ),
+                                  for (final item in entry.value)
+                                    _notificationCard(context, item),
+                                ],
+                              ],
                             ),
-                            for (final item in entry.value)
-                              _notificationCard(context, item),
-                          ],
-                        ],
-                      ),
-              ),
-            ],
-          ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -356,12 +373,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       key: ValueKey(item.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5),
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.x1),
         alignment: AlignmentDirectional.centerEnd,
-        padding: const EdgeInsetsDirectional.only(end: 20),
+        padding: const EdgeInsetsDirectional.only(end: AppSpacing.x4),
         decoration: BoxDecoration(
           color: theme.colorScheme.error,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.large),
         ),
         child: Icon(
           Icons.delete_outline_rounded,
@@ -386,10 +403,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           );
       },
       child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 5),
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.x1),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.large),
           side: BorderSide(
             color: item.important
                 ? theme.colorScheme.error.withValues(alpha: 0.6)
@@ -399,7 +416,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           ),
         ),
         child: ListTile(
-          contentPadding: const EdgeInsetsDirectional.fromSTEB(14, 8, 6, 8),
+          contentPadding: const EdgeInsetsDirectional.fromSTEB(
+            AppSpacing.x3,
+            AppSpacing.x2,
+            AppSpacing.x1,
+            AppSpacing.x2,
+          ),
           onTap: () async {
             await controller.markRead(item.id);
             final link = item.deepLink;
@@ -442,10 +464,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_localized(item, item.body, item.bodyKey)),
-                const SizedBox(height: 6),
+                Text(
+                  _localized(item, item.body, item.bodyKey),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.x2),
                 Wrap(
-                  spacing: 6,
+                  spacing: AppSpacing.x2,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
@@ -720,7 +746,17 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     final controller = widget.controller;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(_t('notificationSettings'))),
+      appBar: AppBar(
+        title: Text(_t('notificationSettings')),
+        backgroundColor: Colors.transparent,
+        elevation: AppElevation.flat,
+        scrolledUnderElevation: AppElevation.flat,
+        surfaceTintColor: Colors.transparent,
+        flexibleSpace: const GlassSurface(
+          borderRadius: BorderRadius.zero,
+          child: SizedBox.expand(),
+        ),
+      ),
       body: AnimatedBuilder(
         animation: controller,
         builder: (context, _) {
@@ -730,35 +766,35 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               key: const ValueKey('notification-settings-content'),
               constraints: const BoxConstraints(maxWidth: 960),
               child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
-            children: [
-              Card(
-                child: Column(
-                  children: [
-                    SwitchListTile.adaptive(
-                      title: Text(_t('masterNotifications')),
-                      subtitle: Text(_t('permissionExplanation')),
-                      value: settings.masterEnabled &&
-                          controller.supportsNotifications &&
-                          (_permissionGranted ?? true),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
+                children: [
+                  Card(
+                    child: Column(
+                      children: [
+                        SwitchListTile.adaptive(
+                          title: Text(_t('masterNotifications')),
+                          subtitle: Text(_t('permissionExplanation')),
+                          value: settings.masterEnabled &&
+                              controller.supportsNotifications &&
+                              (_permissionGranted ?? true),
                           onChanged: controller.supportsNotifications
                               ? _setMaster
                               : null,
-                    ),
-                    if (_permissionGranted != null)
-                      Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          16,
-                          0,
-                          16,
-                          12,
                         ),
-                        child: Text(
-                          _t(!controller.supportsNotifications
-                              ? 'permissionUnsupported'
-                              : _permissionGranted!
-                                  ? 'permissionStatusGranted'
-                                  : 'permissionStatusDenied'),
+                        if (_permissionGranted != null)
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              16,
+                              0,
+                              16,
+                              12,
+                            ),
+                            child: Text(
+                              _t(!controller.supportsNotifications
+                                  ? 'permissionUnsupported'
+                                  : _permissionGranted!
+                                      ? 'permissionStatusGranted'
+                                      : 'permissionStatusDenied'),
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
@@ -768,173 +804,173 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                                         ? scheme.primary
                                         : scheme.error,
                                   ),
-                        ),
-                      ),
-                    const Divider(height: 1),
-                    _sectionTitle(_t('routineNotifications')),
-                    _switch(
-                        'dailyEnabled',
-                        settings.dailyEnabled,
+                            ),
+                          ),
+                        const Divider(height: 1),
+                        _sectionTitle(_t('routineNotifications')),
+                        _switch(
+                            'dailyEnabled',
+                            settings.dailyEnabled,
                             (value) => _update(
                                 settings.copyWith(dailyEnabled: value))),
-                    _switch(
-                        'morningEnabled',
-                        settings.morningEnabled,
+                        _switch(
+                            'morningEnabled',
+                            settings.morningEnabled,
                             (value) => _update(
                                 settings.copyWith(morningEnabled: value))),
-                    _switch(
-                        'eveningEnabled',
-                        settings.eveningEnabled,
+                        _switch(
+                            'eveningEnabled',
+                            settings.eveningEnabled,
                             (value) => _update(
                                 settings.copyWith(eveningEnabled: value))),
-                    _switch(
-                        'sunscreenEnabled',
-                        settings.sunscreenEnabled,
-                        (value) => _update(
-                            settings.copyWith(sunscreenEnabled: value))),
-                    _switch(
-                        'hydrationEnabled',
-                        settings.hydrationEnabled,
-                        (value) => _update(
-                            settings.copyWith(hydrationEnabled: value))),
-                    _switch(
-                        'aiScanEnabled',
-                        settings.aiScanEnabled,
+                        _switch(
+                            'sunscreenEnabled',
+                            settings.sunscreenEnabled,
+                            (value) => _update(
+                                settings.copyWith(sunscreenEnabled: value))),
+                        _switch(
+                            'hydrationEnabled',
+                            settings.hydrationEnabled,
+                            (value) => _update(
+                                settings.copyWith(hydrationEnabled: value))),
+                        _switch(
+                            'aiScanEnabled',
+                            settings.aiScanEnabled,
                             (value) => _update(
                                 settings.copyWith(aiScanEnabled: value))),
-                    _switch(
-                        'weeklySummaryEnabled',
-                        settings.weeklySummaryEnabled,
+                        _switch(
+                            'weeklySummaryEnabled',
+                            settings.weeklySummaryEnabled,
                             (value) => _update(settings.copyWith(
                                 weeklySummaryEnabled: value))),
-                    const Divider(height: 1),
-                    _sectionTitle(_t('activityNotifications')),
-                    _switch(
-                      'doctorMessagesEnabled',
-                      settings.doctorMessagesEnabled,
-                      (value) => _update(
-                        settings.copyWith(doctorMessagesEnabled: value),
-                      ),
-                    ),
-                    _switch(
-                      'appointmentRemindersEnabled',
-                      settings.appointmentRemindersEnabled,
-                      (value) => _update(
+                        const Divider(height: 1),
+                        _sectionTitle(_t('activityNotifications')),
+                        _switch(
+                          'doctorMessagesEnabled',
+                          settings.doctorMessagesEnabled,
+                          (value) => _update(
+                            settings.copyWith(doctorMessagesEnabled: value),
+                          ),
+                        ),
+                        _switch(
+                          'appointmentRemindersEnabled',
+                          settings.appointmentRemindersEnabled,
+                          (value) => _update(
                             settings.copyWith(
                                 appointmentRemindersEnabled: value),
-                      ),
+                          ),
+                        ),
+                        _switch(
+                          'subscriptionAlertsEnabled',
+                          settings.subscriptionAlertsEnabled,
+                          (value) => _update(
+                            settings.copyWith(subscriptionAlertsEnabled: value),
+                          ),
+                        ),
+                        _switch(
+                          'systemUpdatesEnabled',
+                          settings.systemUpdatesEnabled,
+                          (value) => _update(
+                            settings.copyWith(systemUpdatesEnabled: value),
+                          ),
+                        ),
+                        _switch(
+                          'securityAlertsEnabled',
+                          settings.securityAlertsEnabled,
+                          (value) => _update(
+                            settings.copyWith(securityAlertsEnabled: value),
+                          ),
+                        ),
+                      ],
                     ),
-                    _switch(
-                      'subscriptionAlertsEnabled',
-                      settings.subscriptionAlertsEnabled,
-                      (value) => _update(
-                        settings.copyWith(subscriptionAlertsEnabled: value),
-                      ),
-                    ),
-                    _switch(
-                      'systemUpdatesEnabled',
-                      settings.systemUpdatesEnabled,
-                      (value) => _update(
-                        settings.copyWith(systemUpdatesEnabled: value),
-                      ),
-                    ),
-                    _switch(
-                      'securityAlertsEnabled',
-                      settings.securityAlertsEnabled,
-                      (value) => _update(
-                        settings.copyWith(securityAlertsEnabled: value),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Card(
-                child: Column(
-                  children: [
-                    _sectionTitle(_t('deliveryPreferences')),
-                    _switch(
-                        'soundEnabled',
-                        settings.soundEnabled,
+                  ),
+                  Card(
+                    child: Column(
+                      children: [
+                        _sectionTitle(_t('deliveryPreferences')),
+                        _switch(
+                            'soundEnabled',
+                            settings.soundEnabled,
                             (value) => _update(
                                 settings.copyWith(soundEnabled: value))),
-                    _switch(
-                        'vibrationEnabled',
-                        settings.vibrationEnabled,
-                        (value) => _update(
-                            settings.copyWith(vibrationEnabled: value))),
-                    _switch(
-                        'privatePreview',
-                        settings.privatePreview,
+                        _switch(
+                            'vibrationEnabled',
+                            settings.vibrationEnabled,
+                            (value) => _update(
+                                settings.copyWith(vibrationEnabled: value))),
+                        _switch(
+                            'privatePreview',
+                            settings.privatePreview,
                             (value) => _update(
                                 settings.copyWith(privatePreview: value))),
-                    Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                        16,
-                        0,
-                        16,
-                        12,
-                      ),
-                      child: Text(
-                        _t('privatePreviewDescription'),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                            16,
+                            0,
+                            16,
+                            12,
+                          ),
+                          child: Text(
+                            _t('privatePreviewDescription'),
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                      ),
-                    ),
-                    _switch(
-                        'quietHoursEnabled',
-                        settings.quietHoursEnabled,
-                        (value) => _update(
-                            settings.copyWith(quietHoursEnabled: value))),
-                    if (settings.quietHoursEnabled) ...[
-                      _timeRow(
-                        _t('quietStart'),
-                        settings.quietStartMinutes,
-                        (value) => _update(
-                          settings.copyWith(quietStartMinutes: value),
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                          ),
                         ),
-                      ),
-                      _timeRow(
-                        _t('quietEnd'),
-                        settings.quietEndMinutes,
+                        _switch(
+                            'quietHoursEnabled',
+                            settings.quietHoursEnabled,
+                            (value) => _update(
+                                settings.copyWith(quietHoursEnabled: value))),
+                        if (settings.quietHoursEnabled) ...[
+                          _timeRow(
+                            _t('quietStart'),
+                            settings.quietStartMinutes,
+                            (value) => _update(
+                              settings.copyWith(quietStartMinutes: value),
+                            ),
+                          ),
+                          _timeRow(
+                            _t('quietEnd'),
+                            settings.quietEndMinutes,
                             (value) => _update(
                                 settings.copyWith(quietEndMinutes: value)),
-                      ),
-                      Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          16,
-                          0,
-                          16,
-                          12,
-                        ),
-                        child: Text(
-                          _t('quietHoursDescription'),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: scheme.onSurfaceVariant),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: OutlinedButton.icon(
-                  onPressed: _preview,
-                  icon: const Icon(Icons.volume_up_outlined),
-                  label: Text(_t('previewAlert')),
-                ),
-              ),
-              Text(
-                _t('platformAlertNote'),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
+                          ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              16,
+                              0,
+                              16,
+                              12,
+                            ),
+                            child: Text(
+                              _t('quietHoursDescription'),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-              ),
-            ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: OutlinedButton.icon(
+                      onPressed: _preview,
+                      icon: const Icon(Icons.volume_up_outlined),
+                      label: Text(_t('previewAlert')),
+                    ),
+                  ),
+                  Text(
+                    _t('platformAlertNote'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
               ),
             ),
           );
@@ -1024,11 +1060,11 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       return;
     }
 
-          final time = await showTimePicker(
-            context: context,
-            initialTime: TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60),
-          );
-          if (time != null) onChanged(time.hour * 60 + time.minute);
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60),
+    );
+    if (time != null) onChanged(time.hour * 60 + time.minute);
   }
 
   Future<void> _setMaster(bool enabled) async {

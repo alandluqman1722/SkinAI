@@ -9,7 +9,15 @@ from pathlib import Path
 
 
 LANGUAGES = ("en", "ku", "bad", "ar")
-DOMAINS = ("app", "settings", "notifications", "routines", "widgets", "doctors")
+DOMAINS = (
+    "app",
+    "settings",
+    "notifications",
+    "routines",
+    "widgets",
+    "doctors",
+    "admin",
+)
 UNCHANGED_TEXT_ALLOWLIST = {"emailHint"}
 DOMAIN_PATTERN = re.compile(r"(?m)^\s{2}'([^']+)':(?:<[^>]+>)?\s*\{")
 KEY_PATTERN = re.compile(r"(?m)^\s{4}'([^']+)':\s*(.*)$")
@@ -71,6 +79,7 @@ def _localization_references(root: Path) -> list[str]:
         "app": root / "lib" / "main.dart",
         "routines": root / "lib" / "routines" / "routine_screens.dart",
         "notifications": root / "lib" / "notifications" / "notification_screens.dart",
+        "admin": root / "lib" / "admin" / "admin_dashboard_screen.dart",
     }
     errors: list[str] = []
     english, _, _ = load_translation_file(
@@ -116,6 +125,11 @@ def _localization_references(root: Path) -> list[str]:
                     english.get("notifications", {}).keys()
                     | english.get("app", {}).keys()
                 ):
+                    errors.append(f"{relative}:{key}")
+        elif relative.endswith("admin_dashboard_screen.dart"):
+            for match in re.finditer(r"_t\('([^']+)'\)", source):
+                key = match.group(1)
+                if "$" not in key and key not in english.get("admin", {}):
                     errors.append(f"{relative}:{key}")
     return errors
 

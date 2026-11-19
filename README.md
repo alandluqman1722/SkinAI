@@ -1,9 +1,8 @@
 # SkinAI
 
-SkinAI is a Flutter app with a FastAPI backend. **Skin-image analysis uses only
-the external ScanSkinAI API**; no local model, training code, or dataset is part
-of the active application. The ScanSkinAI secret is read only by the backend
-from `SCANSKIN_API_KEY`.
+SkinAI is a Flutter app with a FastAPI backend. Skin-condition screening uses
+the official Ivy AI API documented at <https://www.ivyai.hk/docs>. The backend
+reads `IVYAI_API_KEY`; the key is never sent to or embedded in Flutter.
 
 This is a screening tool, not a medical diagnosis. Please consult a healthcare
 professional.
@@ -14,7 +13,8 @@ professional.
   Firebase user's bearer token.
 - FastAPI verifies Firebase authentication, validates and converts the image to
   JPEG, and forwards it to
-  `https://scanskinai.aihealthpred.com/api/detect/`.
+  `https://scanskinai.aihealthpred.com/api/detect/` using multipart field
+  `input_image` and header `X-API-KEY`.
 - The server accepts JPG, PNG, WebP, BMP, GIF, and TIFF uploads up to 10 MB;
   the provider receives a JPEG resized to at most 2000 pixels on its longest
   side.
@@ -22,8 +22,9 @@ professional.
   forwarded only when selected in the structured scanner controls.
 - Successful responses are saved as generated IDs and timestamps in the local
   `scan_log.jsonl` file. Images and symptom fields are not written to that log.
-- `GET /health` reports service status. `MOCK_API=1` returns a fake analysis
-  without using a ScanSkinAI call; Firebase authentication still applies.
+- `GET /health` reports service status. `MOCK_API=1` returns an explicitly
+  labeled test response without making an Ivy AI call; Firebase authentication
+  still applies, and test responses cannot be saved as medical records.
 - The Flutter app supports English, Sorani Kurdish, Badini Kurdish, and Arabic,
   including RTL support, and renders provider summaries as Markdown without
   loading remote images or opening links.
@@ -34,14 +35,15 @@ professional.
   owner-scoped API endpoints. Image access is currently owner-only; the app has
   no doctor-to-patient image permission workflow, so doctor accounts cannot
   read another user's files.
-- SkinChat is a skincare-education assistant (not a general chatbot) powered by
-  Google's Gemini `generateContent` API. It supports English, Sorani Kurdish,
-  Badini Kurdish, and Arabic, using the language selected in the app.
+- SkinChat conversation history, image storage, and localized safety responses
+  remain available in English, Sorani Kurdish, Badini Kurdish, and Arabic.
+  General generated skincare answers are unavailable until a supported text
+  provider is integrated.
 - SkinChat images remain in private backend file storage for the user's own
-  conversation history. The backend never sends image bytes or image references
-  to Gemini and refuses requests to diagnose or interpret uploaded photos.
-- The backend blocks unrelated questions before contacting Gemini and provides
-  localized medical-safety and urgent-care guidance. Daily limits default to 10
+  conversation history. Image bytes are not sent to an AI provider, and
+  requests to diagnose or interpret uploaded photos are refused.
+- The backend blocks unrelated questions and provides localized medical-safety
+  and urgent-care guidance. Daily limits default to 10
   messages for free users and 100 for paid users; paid limits require verified
   Firebase custom claims `skinchat_plan=paid` and
   `skinchat_subscription_status=active`. Missing or inactive claims get the
@@ -79,46 +81,80 @@ active app.
    generate a different local value: it would not match the existing Firestore
    blocklist IDs. Keep this secret out of source control and chat.
 
-3. Keep `MOCK_API=1` while developing without consuming provider calls. Set
-   `SCANSKIN_API_KEY` only in the backend process or its untracked `.env` file.
-   To intentionally enable real provider calls, set `MOCK_API=0`.
+3. Keep `MOCK_API=1` while developing without consuming provider calls. For
+   real screening, configure a newly issued `IVYAI_API_KEY` only in the backend
+   process or its untracked `.env` file, then set `MOCK_API=0`. Never reuse a
+   credential exposed in logs, source, or chat; revoke exposed keys.
 
-4. Configure SkinChat only in the backend's untracked `.env` file:
+4. Configure the medical assessment in the backend's untracked `.env` file:
 
    ```dotenv
-   SKINCHAT_AI_ENABLED=true
-   SKINCHAT_AI_API_KEY=your_rotated_gemini_api_key
-   SKINCHAT_AI_MODEL=gemini-2.5-flash
+   IVYAI_API_KEY=your_new_rotated_ivy_key
+   MEDICAL_ASSESSMENT_ENABLED=true
    SKINCHAT_FREE_DAILY_LIMIT=10
    SKINCHAT_PAID_DAILY_LIMIT=100
+   SKINAI_MEDICAL_ENCRYPTION_KEY=<base64url-encoded-32-byte-key>
+   SKINAI_MEDICAL_STORAGE_DIR=backend/uploads/medical
+   OPENFDA_API_KEY=<optional-openfda-api-key>
    SKINAI_IMAGE_STORAGE_DIR=backend/uploads/skin_images
    ```
 
-   `SKINCHAT_AI_API_KEY` is sent in the API header and must never be placed in
-   Flutter configuration or source control. Use a valid Gemini model available
-   to your Google AI project. The server calls Google's official
-   `generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
-   endpoint. The app allows general skincare education, routines, skin types,
-   cosmetic ingredients, sunscreen, hydration, acne care, and general
-   educational information about common skin conditions. It does not interpret
-   images, diagnose, prescribe, or replace a dermatologist.
-   Provider calls have a 20-second per-attempt deadline and at most one retry
-   for transient failures; the Flutter client allows 60 seconds for the
-   response. If the client times out, retrying uses the same message ID so a
-   reply that was already saved can be recovered without duplicating history.
+   Generate the encryption key outside source control and keep a secure backup:
 
-   Paid quotas apply only when Firebase ID-token custom claims are set by a
-   trusted server to `skinchat_plan=paid` and
-   `skinchat_subscription_status=active`. This project does not implement
-   billing or subscription verification; absent, invalid, or inactive claims
-   remain on the configured free limit. Do not grant these claims based on
-   client-controlled data.
+   ```powershell
+   python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+   ```
+
+   The assessment endpoint is `POST /medical/assessments`. It requires a Firebase
+   bearer token and explicit `external_processing_consent=true`. It combines
+   Ivy AI screens only the submitted skin image. The report is assembled from
+   deterministic templates and validated user-entered questionnaire,
+   medication, and examination details. Medication package OCR and medical
+   report interpretation are unavailable; attached files are not interpreted.
+   Manual medication names may be checked against FDA/DailyMed references, but
+   the app does not recommend medication or assess its suitability. No patient
+   history or report is sent to Ivy AI.
+
+   The endpoint accepts multipart fields `patient_data` (JSON), `skin_image`,
+   optional `medication_image`, and up to three repeated `medical_reports`
+   attachments. The response is schema-validated and includes a deterministic
+   `safety` object with `concern_level`, `referral_required`, and
+   `medication_recommendations_allowed`. High-risk labels such as melanoma,
+   basal/squamous cell carcinoma, and actinic keratosis require in-person
+   dermatologist assessment. Unclear images receive an insufficient result.
+   Medication action recommendations are not generated by this workflow.
+
+   Authenticated history and ownership-scoped file routes are
+   `GET /medical/assessments`, `GET /medical/assessments/{assessment_id}`,
+   `GET /medical/assessments/{assessment_id}/files/{file_id}`, and
+   `DELETE /medical/assessments/{assessment_id}`. These routes require Firebase
+   authentication and only read records in the signed-in user's account.
+
+   If `storage_consent=true`, the full assessment and original medication/report
+   files are encrypted with AES-GCM and stored under the private
+   `SKINAI_MEDICAL_STORAGE_DIR` directory. Firestore stores only the encrypted
+   assessment payload and file references under
+   `users/{uid}/medical_assessments/{assessmentId}` plus an owner audit event
+   under `users/{uid}/medical_audit`. The skin image is not served as an
+   assessment attachment. Original medication/report downloads use
+   owner-scoped authenticated routes and return `no-store` responses.
+
+   Use a persistent private volume in production, restrict OS permissions to
+   the backend account, and back up the encryption key separately from the
+   uploaded files. Rotating or losing the key makes previously encrypted
+   assessments unreadable. There is no mock medical-assessment success mode:
+   real provider configuration is required. The workflow never returns a
+   medication dose or prescription and is educational, not diagnostic.
+
+   Image screening only remains available through `POST /analyze`. The response
+   includes deterministic concern/referral classification; Flutter displays
+   the screening disclaimer without collecting the guided assessment fields.
 
 5. Start the API from the repository root after setting up Firebase as above:
 
    ```powershell
    $env:MOCK_API = "1"
-   $env:SCANSKIN_API_KEY = "..."
+   $env:IVYAI_API_KEY = "..."
    .\backend\.venv\Scripts\python.exe app.py
    ```
 
@@ -126,7 +162,10 @@ active app.
    `http://127.0.0.1:8000/health` to check availability. Startup requires valid
    Firebase Admin credentials even in mock mode.
 
-   SkinChat endpoints are under `/api/skinchat/conversations`. Conversation
+   SkinChat endpoints are under `/api/skinchat/conversations`. General
+   AI-generated skincare answers are currently unavailable; localized safety
+   responses, saved conversation history, and private image storage remain.
+   Conversation
    messages, image metadata, and atomic daily usage counters are persisted in
    Firestore; image bytes are stored locally under
    `backend/uploads/skin_images` by default and are never exposed as static
@@ -200,14 +239,19 @@ that client ID, the app still starts, but Google sign-in is unavailable on web.
 
 ## Validation
 
-Backend tests use mocked provider calls and do not contact ScanSkinAI:
+Backend unit tests use mocked provider calls and do not contact Ivy AI:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe -m pytest tests\test_doctor_directory.py tests\test_localization_audit.py -q
 .\backend\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_skinchat.py"
 .\backend\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_medical_records.py"
-.\backend\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_scanskin_api.py"
+.\backend\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_ivy_ai_provider.py"
+.\backend\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_patient_assessments.py"
 ```
+
+The live Ivy AI test is skipped unless both `IVYAI_API_KEY` and
+`RUN_REAL_IVYAI_TESTS=1` are set. It sends a generated synthetic image to Ivy
+AI. Do not enable it with an exposed or unrotated credential.
 
 Run Flutter checks with:
 

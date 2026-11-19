@@ -30,6 +30,7 @@ class LocalizationAuditTests(unittest.TestCase):
             "routines",
             "widgets",
             "doctors",
+            "admin",
         ):
             self.assertEqual(self.report["missing"]["bad"][domain], [], domain)
             self.assertEqual(self.report["extra"]["bad"][domain], [], domain)

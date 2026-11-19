@@ -12,6 +12,7 @@ from PIL import Image
 
 import app as skinai_api
 import backend.doctor_directory as directory
+import backend.firebase_auth as firebase_auth
 from backend.firebase_auth import require_firebase_user
 
 
@@ -132,6 +133,7 @@ def _png_image():
 
 class DoctorDirectoryTests(unittest.TestCase):
     def setUp(self):
+        firebase_auth._admin_rate_requests.clear()
         self.database = _Database()
         self.claims = {"uid": "patient-a"}
         self.storage = tempfile.TemporaryDirectory()
@@ -489,16 +491,47 @@ class DoctorDirectoryTests(unittest.TestCase):
             json={"status": "approved"},
         )
         profile = self._request("GET", f"/api/doctors/{doctor_id}")
+        removal = self._request(
+            "PUT",
+            f"/api/doctors/admin/doctors/{doctor_id}/verification",
+            admin=True,
+            json={
+                "status": "unverified",
+                "notes": "Private review note must not be copied to the audit log.",
+            },
+        )
+        profile_after_removal = self._request("GET", f"/api/doctors/{doctor_id}")
 
         self.assertEqual(upload.status_code, 201, upload.text)
         self.assertEqual(private_document.content, b"%PDF-1.7\nprivate test document")
         self.assertEqual(forbidden_document.status_code, 403)
         self.assertEqual(approval.json()["verified"], True)
         self.assertTrue(profile.json()["verified"])
+        self.assertEqual(removal.status_code, 200, removal.text)
+        self.assertFalse(profile_after_removal.json()["verified"])
         self.assertNotIn(
             "file_id",
             admin_list.json()[0]["verification_documents"][0],
         )
+        audit_entries = [
+            value
+            for path, value in self.database.documents.items()
+            if path[0] == "admin_audit_logs"
+        ]
+        self.assertEqual(
+            [entry["action"] for entry in audit_entries],
+            [
+                "doctor.created",
+                "doctor.photo_uploaded",
+                "doctor.updated",
+                "doctor.verification_document_uploaded",
+                "doctor.verification_changed",
+                "doctor.verification_changed",
+            ],
+        )
+        self.assertNotIn("license.pdf", str(audit_entries))
+        self.assertNotIn("private test document", str(audit_entries))
+        self.assertNotIn("Private review note", str(audit_entries))
 
     def test_review_reports_are_deduplicated_and_admin_moderated(self):
         doctor_id = self._create_doctor()

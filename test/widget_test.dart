@@ -161,6 +161,41 @@ void main() {
     expect(FirebaseClientConfig.isConfigured, isFalse);
   });
 
+  testWidgets('auth form fits a narrow RTL screen with large text and keyboard',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    final controller = AppController();
+    await controller.init();
+    await controller.setLang(AppLang.ku);
+
+    await tester.pumpWidget(
+      AppScope(
+        controller: controller,
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(320, 568),
+              textScaler: TextScaler.linear(2),
+              viewInsets: EdgeInsets.only(bottom: 180),
+            ),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: AuthScreen(startLogin: true),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextFormField), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
   test('registration sends verification and keeps its pending session',
       () async {
     SharedPreferences.setMockInitialValues({});

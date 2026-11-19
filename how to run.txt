@@ -42,7 +42,7 @@ SkinAI - ڕێبەری تەواوی بەڕێوەبردن (Windows + iPhone)
   $env:MOCK_API = "0"
   python app.py
 
-  MOCK_API = "0"  -> سکانی ڕاستەقینە (ScanSkinAI) و ژمارەی بەکارهێنان دەخوات
+  MOCK_API = "0"  -> پشکنینی ڕاستەقینە (Ivy AI) و ژمارەی بەکارهێنان دەخوات
   MOCK_API = "1"  -> وەڵامی ساختە، بۆ تاقیکردنەوەی بێ بەکارهێنان
 
   دوا دێڕ دەبێت ئەمە بێت و پەنجەرەکە کراوە بهێڵەرەوە:
@@ -199,12 +199,14 @@ SkinAI - ڕێبەری تەواوی بەڕێوەبردن (Windows + iPhone)
   FIREBASE_PROJECT_ID=skinai-b0465
   GOOGLE_APPLICATION_CREDENTIALS=E:\Desktop\nn\skin_ai\service-account.json
   MOCK_API=1
-  SCANSKIN_API_KEY=<کلیلی ScanSkinAI>
+  IVYAI_API_KEY=<کلیلێ نوو و گۆڕدراوی Ivy AI>
   EMAIL_BLOCK_HMAC_KEY=<هەمان نهێنی Firebase Functions>
-  SKINCHAT_AI_ENABLED=true
-  SKINCHAT_AI_API_KEY=<کلیلی Gemini>
-  SKINCHAT_AI_MODEL=gemini-3.8-flash
+  # جوابێن گشتی یێن SkinChat نوکە بەردەست نینن؛ هیچ کلیلا LLM دڤێت نینە.
   SKINAI_IMAGE_STORAGE_DIR=backend/uploads/skin_images
+  MEDICAL_ASSESSMENT_ENABLED=true
+  SKINAI_MEDICAL_ENCRYPTION_KEY=<32-byte-base64url-key>
+  SKINAI_MEDICAL_STORAGE_DIR=backend/uploads/medical
+  OPENFDA_API_KEY=<optional-openfda-key>
 
   - GOOGLE_APPLICATION_CREDENTIALS دەبێت ڕێگای ڕاستی فایلی JSON بێت.
   - بێ فاریزە و بێ بۆشایی دەوروبەری = .
@@ -253,15 +255,9 @@ SkinAI - ڕێبەری تەواوی بەڕێوەبردن (Windows + iPhone)
   -> کلیلی service-account.json کۆنە یان سڕاوەتەوە. کلیلی نوێ دروست بکە
      (بەشی ٧ (3)) و باکەند دووبارە دەست پێبکەرەوە.
 
-"Gemini rejected the request" لە SkinChat
-  -> 401: کلیلی Gemini دروست نییە، کلیلی نوێ لە aistudio.google.com
-     دروست بکە و لە .env دایبنێ.
-  -> 404: ناوی مۆدێل (SKINCHAT_AI_MODEL) دروست نییە یان بۆ ئەکاونتەکەت
-     بەردەست نییە. ئەو ناوەی Google خۆی پێشنیاری دەکات بنووسە.
-  -> دوای هەر گۆڕانێک باکەند دووبارە دەست پێبکەرەوە.
-
 "AI service is temporarily unavailable" لە Scan (HTTP 503)
-  -> SCANSKIN_API_KEY لە .env نییە یان دروست نییە. MOCK_API=0 بێت.
+-> کلیلا نوو یا IVYAI_API_KEY ل .env ڕێک بخە، MOCK_API=0 بکە و
+   باکەند دووبارە دەست پێبکەرەوە. کلیلی بڵاوکراوە دووبارە بکارمەهێنە.
 
 python: can't open file '...\backend\app.py'
   -> لە ناو backend بووی. cd E:\Desktop\nn\skin_ai بکە و دووبارە.
@@ -296,7 +292,7 @@ Sideloadly: "Failed to create app extension placeholder ... SkinAIWidget.appex"
   - .env، service-account.json، firebase.config.json هەرگیز نەچنە GitHub.
   - هیچ کلیلێک لە چات، وێنە یان ئەم فایلەدا مەنووسە.
   - ئەگەر کلیلێک بڵاو بوو، یەکسەر لە سەرچاوەکەی بیسڕەوە و نوێ دروست بکە:
-      ScanSkinAI، Gemini (aistudio.google.com)، Firebase service account.
+      Ivy AI، Firebase service account.
   - لینکی tunnel گشتییە: تا کار دەکات هەرکەسێک بیزانێت دەتوانێت بگاتە
     باکەندەکەت (Firebase Auth داواکارییەکان دەپارێزێت). کاتێک
     بەکارنایەیت cloudflared دابخە.
@@ -329,10 +325,7 @@ One-time setup
    - GOOGLE_APPLICATION_CREDENTIALS=<absolute path to your Firebase Admin service-account JSON>
    - EMAIL_BLOCK_HMAC_KEY=<the exact same secret configured for Firebase Functions>
    - MOCK_API=1
-   - SCANSKIN_API_KEY=<your valid ScanSkinAI key, only needed for real scans>
-   - SKINCHAT_AI_ENABLED=true
-   - SKINCHAT_AI_API_KEY=<your valid Gemini API key>
-   - SKINCHAT_AI_MODEL=<a Gemini model enabled for your Google AI project>
+   - IVYAI_API_KEY=<newly rotated Ivy AI key, only needed for real screening>
    - SKINAI_IMAGE_STORAGE_DIR=backend/uploads/skin_images
 
    Keep the Firebase service-account JSON outside this repository. Make sure
@@ -408,19 +401,20 @@ Use the emulator's host address (10.0.2.2) so Android can reach the backend:
 For a physical phone, use your computer's LAN IP instead of 10.0.2.2. Make sure
 both devices are on the same network and the firewall allows port 8000.
 
-Use real ScanSkinAI scans
+Use real Ivy AI screening
 -------------------------
 
 The current .env setting MOCK_API=1 returns clearly labeled mock results and
-does not call ScanSkinAI. To use real scans:
+does not call Ivy AI. To use real screening:
 
-1. Ensure SCANSKIN_API_KEY in .env is a valid, rotated key.
+1. Configure a newly rotated IVYAI_API_KEY in .env. Do not reuse credentials
+   previously exposed in logs, source, or chat.
 2. Change MOCK_API=1 to MOCK_API=0 in .env.
 3. Stop the backend with Ctrl+C and start it again using the command above.
 4. Retry the scan and check the backend terminal for provider errors.
 
-Do not set or paste keys in the Flutter command. The key previously included
-in this file has been removed; revoke it because it was exposed.
+Do not set or paste keys in the Flutter command. Keep IVYAI_API_KEY in the
+backend environment only.
 
 Troubleshooting
 ---------------
@@ -428,12 +422,10 @@ Troubleshooting
 - If /health fails, check the backend terminal and verify that the Firebase
   Admin credential file exists at the path in .env.
 - The app's "AI service is temporarily unavailable" scan message corresponds
-  to HTTP 503. Check the backend log: if it says ScanSkinAI is not configured,
-  add a valid SCANSKIN_API_KEY to .env; if it reports an upstream error, verify
-  the key/provider availability. Restart the backend after editing .env.
-- SkinChat Gemini HTTP 404 is separate from scan HTTP 503. Verify that
-  SKINCHAT_AI_MODEL is available to the Google AI project that owns
-  SKINCHAT_AI_API_KEY, then restart the backend.
+  to HTTP 503. Check that the backend has a newly rotated IVYAI_API_KEY and
+  MOCK_API=0. Restart the backend after editing .env.
+- SkinChat history and localized safety messages remain available; generated
+  skincare responses are disabled until a supported text provider is selected.
 - For connection failures, use 127.0.0.1 for Chrome on this computer,
   10.0.2.2 for the Android emulator, or the computer's LAN IP for a phone.
 
@@ -446,7 +438,6 @@ may be lost when the server is redeployed.
 
 .\backend\.venv\Scripts\Activate.ps1
 $env:MOCK_API = "0"
-$env:SCANSKIN_API_KEY = "df3O9hDg5-q0OqTtwZpbYCUvJ_WAYuD2wQHHEBxTCbQ"
 python app.py
 
 

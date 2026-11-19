@@ -5,7 +5,7 @@ void main() {
   test('PDF report contains a valid PDF document', () async {
     final bytes = await buildScanReportPdf(
       result: 'Mock screening result',
-      confidencePercent: 84,
+      concernLevel: 'moderate',
       scannedAt: DateTime.utc(2026, 10, 29, 12),
       summary: 'Mock **screening** summary.',
       localize: (key, {arguments = const {}}) => key,

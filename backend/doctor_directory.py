@@ -4,7 +4,7 @@ import logging
 import re
 from datetime import date, datetime, time, timedelta, timezone
 from io import BytesIO
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -14,9 +14,10 @@ from google.api_core.exceptions import GoogleAPIError
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .admin_audit import create_audit_entry
 from .doctor_storage import delete_file, file_exists, read_file, store_file
 from .firebase_app import get_firebase_app
-from .firebase_auth import require_firebase_user
+from .firebase_auth import require_admin, require_firebase_user
 
 router = APIRouter(prefix="/api/doctors", tags=["Doctor directory"])
 _logger = logging.getLogger(__name__)
@@ -147,10 +148,8 @@ def _database():
 
 
 def require_doctor_admin(
-    claims: dict[str, Any] = Depends(require_firebase_user),
+    claims: dict[str, Any] = Depends(require_admin),
 ) -> dict[str, Any]:
-    if claims.get("admin") is not True:
-        raise HTTPException(status_code=403, detail="Administrator access is required.")
     return claims
 
 
@@ -160,6 +159,38 @@ def _now() -> datetime:
 
 def _timestamp() -> str:
     return _now().isoformat()
+
+
+def _commit_admin_change(
+    db: Any,
+    *,
+    admin_uid: str,
+    action: str,
+    target_type: str,
+    target_id: str,
+    before: dict[str, bool | int | str] | None,
+    after: dict[str, bool | int | str] | None,
+    write: Callable[[Any], None],
+) -> None:
+    from google.cloud.firestore_v1 import transactional
+
+    transaction = db.transaction(max_attempts=5)
+
+    @transactional
+    def commit(transaction: Any) -> None:
+        write(transaction)
+        create_audit_entry(
+            db,
+            admin_uid=admin_uid,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            before=before,
+            after=after,
+            transaction=transaction,
+        )
+
+    commit(transaction)
 
 
 def _doctor_reference(db: Any, doctor_id: str):
@@ -616,7 +647,22 @@ def create_doctor(
         }
     )
     try:
-        _doctor_reference(db, doctor_id).set(data)
+        _commit_admin_change(
+            db,
+            admin_uid=admin["uid"],
+            action="doctor.created",
+            target_type="doctor",
+            target_id=doctor_id,
+            before=None,
+            after={
+                "publication_status": data["publication_status"],
+                "verification_status": "unverified",
+            },
+            write=lambda transaction: transaction.create(
+                _doctor_reference(db, doctor_id),
+                data,
+            ),
+        )
     except GoogleAPIError as error:
         _logger.error("Doctor profile create failed (%s).", type(error).__name__)
         raise HTTPException(status_code=503, detail="Could not create doctor profile.") from error
@@ -689,7 +735,30 @@ def update_doctor(
     data.update({"updated_at": _timestamp(), "updated_by": admin["uid"]})
     _validate_publishable({**old_data, **data})
     try:
-        _doctor_reference(db, doctor_id).update(data)
+        _commit_admin_change(
+            db,
+            admin_uid=admin["uid"],
+            action="doctor.updated",
+            target_type="doctor",
+            target_id=doctor_id,
+            before={
+                "publication_status": str(old_data.get("publication_status", "draft")),
+                "verification_status": str(old_data.get("verification_status", "unverified")),
+            },
+            after={
+                "publication_status": data["publication_status"],
+                "verification_status": str(
+                    data.get(
+                        "verification_status",
+                        old_data.get("verification_status", "unverified"),
+                    )
+                ),
+            },
+            write=lambda transaction: transaction.update(
+                _doctor_reference(db, doctor_id),
+                data,
+            ),
+        )
     except GoogleAPIError as error:
         _logger.error("Doctor profile update failed (%s).", type(error).__name__)
         raise HTTPException(status_code=503, detail="Could not update doctor profile.") from error
@@ -721,13 +790,23 @@ async def upload_doctor_photo(
     previous_id = doctor.get("profile_photo_id")
     previous_extension = doctor.get("profile_photo_extension")
     try:
-        _doctor_reference(db, doctor_id).update(
-            {
-                "profile_photo_id": file_id,
-                "profile_photo_extension": extension,
-                "updated_at": _timestamp(),
-                "updated_by": admin["uid"],
-            }
+        _commit_admin_change(
+            db,
+            admin_uid=admin["uid"],
+            action="doctor.photo_uploaded",
+            target_type="doctor",
+            target_id=doctor_id,
+            before={"profile_photo": bool(previous_id)},
+            after={"profile_photo": True},
+            write=lambda transaction: transaction.update(
+                _doctor_reference(db, doctor_id),
+                {
+                    "profile_photo_id": file_id,
+                    "profile_photo_extension": extension,
+                    "updated_at": _timestamp(),
+                    "updated_by": admin["uid"],
+                },
+            ),
         )
     except GoogleAPIError as error:
         delete_file("profiles", file_id, extension)
@@ -745,7 +824,7 @@ async def upload_verification_document(
     admin: dict[str, Any] = Depends(require_doctor_admin),
 ) -> dict[str, Any]:
     db = _database()
-    _read_doctor(db, doctor_id)
+    doctor = _read_doctor(db, doctor_id)
     raw = await file.read(_MAX_UPLOAD_BYTES + 1)
     if len(raw) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="The verification document is too large.")
@@ -782,20 +861,41 @@ async def upload_verification_document(
         "uploaded_by": admin["uid"],
         "uploaded_at": _timestamp(),
     }
-    try:
-        reference = (
-            db.collection("doctor_private")
-            .document(doctor_id)
-            .collection("verification_documents")
-            .document(document_id)
-        )
-        reference.set(document)
-        _doctor_reference(db, doctor_id).update(
+    reference = (
+        db.collection("doctor_private")
+        .document(doctor_id)
+        .collection("verification_documents")
+        .document(document_id)
+    )
+
+    def write_verification_document(transaction: Any) -> None:
+        transaction.set(reference, document)
+        transaction.update(
+            _doctor_reference(db, doctor_id),
             {
                 "verification_status": "pending",
                 "updated_at": _timestamp(),
                 "updated_by": admin["uid"],
-            }
+            },
+        )
+
+    try:
+        _commit_admin_change(
+            db,
+            admin_uid=admin["uid"],
+            action="doctor.verification_document_uploaded",
+            target_type="doctor",
+            target_id=doctor_id,
+            before={
+                "verification_status": str(
+                    doctor.get("verification_status", "unverified")
+                ),
+            },
+            after={
+                "verification_status": "pending",
+                "document_uploaded": True,
+            },
+            write=write_verification_document,
         )
     except GoogleAPIError as error:
         delete_file("verification", file_id, extension)
@@ -883,7 +983,23 @@ def decide_verification(
         "updated_by": admin["uid"],
     }
     try:
-        _doctor_reference(db, doctor_id).update(update)
+        _commit_admin_change(
+            db,
+            admin_uid=admin["uid"],
+            action="doctor.verification_changed",
+            target_type="doctor",
+            target_id=doctor_id,
+            before={
+                "verification_status": str(
+                    doctor.get("verification_status", "unverified")
+                ),
+            },
+            after={"verification_status": payload.status},
+            write=lambda transaction: transaction.update(
+                _doctor_reference(db, doctor_id),
+                update,
+            ),
+        )
     except GoogleAPIError as error:
         _logger.error("Doctor verification update failed (%s).", type(error).__name__)
         raise HTTPException(status_code=503, detail="Could not update verification.") from error
@@ -1080,6 +1196,8 @@ def _change_appointment_status(
     target_status: str,
     *,
     patient_uid: str | None = None,
+    admin_uid: str | None = None,
+    reason: str | None = None,
 ) -> dict[str, Any]:
     appointment_reference = db.collection("doctor_appointments").document(
         appointment_id
@@ -1118,6 +1236,17 @@ def _change_appointment_status(
                 "status": target_status,
                 "updated_at": _timestamp(),
             }
+            update = {
+                "status": target_status,
+                "updated_at": updated_record["updated_at"],
+            }
+            if admin_uid is not None:
+                updated_record["moderated_by"] = admin_uid
+                update["moderated_by"] = admin_uid
+                if reason is not None:
+                    normalized_reason = reason.strip()
+                    updated_record["moderation_reason"] = normalized_reason
+                    update["moderation_reason"] = normalized_reason
             slot_reference = db.collection("doctor_appointment_slots").document(
                 _slot_id(
                     current["doctor_id"],
@@ -1125,14 +1254,29 @@ def _change_appointment_status(
                     current["appointment_time"],
                 )
             )
-            tx.update(appointment_reference, {
-                "status": target_status,
-                "updated_at": updated_record["updated_at"],
-            })
-            tx.set(slot_reference, {
-                "appointment_id": appointment_id,
-                "status": target_status,
-            }, merge=True)
+            tx.update(appointment_reference, update)
+            tx.set(
+                slot_reference,
+                {
+                    "appointment_id": appointment_id,
+                    "status": target_status,
+                },
+                merge=True,
+            )
+            if admin_uid is not None:
+                create_audit_entry(
+                    db,
+                    admin_uid=admin_uid,
+                    action="appointment.status_changed",
+                    target_type="appointment",
+                    target_id=appointment_id,
+                    before={"status": str(current_status)},
+                    after={
+                        "status": target_status,
+                        "reason_provided": reason is not None,
+                    },
+                    transaction=tx,
+                )
 
         update_status(transaction)
         return {"id": appointment_id, **_appointment_public(updated_record)}
@@ -1307,12 +1451,13 @@ def list_admin_appointments(
 def moderate_appointment(
     appointment_id: str,
     payload: AppointmentModeration,
-    _: dict[str, Any] = Depends(require_doctor_admin),
+    admin: dict[str, Any] = Depends(require_doctor_admin),
 ) -> dict[str, Any]:
     return _change_appointment_status(
         _database(),
         appointment_id,
         payload.status,
+        admin_uid=admin["uid"],
     )
 
 

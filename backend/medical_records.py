@@ -346,7 +346,7 @@ def create_analysis_scan(
                 original_content_type if image_id else None
             ),
             "image_storage_consent": original_image is not None,
-            "source": "ScanSkinAI",
+            "source": "Ivy AI",
         }
         reference = (
             db.collection("users")

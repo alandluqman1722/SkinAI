@@ -57,7 +57,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byType(NavigationDestination).at(2));
+    await tester.tap(find.byKey(const ValueKey('app-bottom-nav-2')));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Face'), findsOneWidget);
     expect(find.text('General skin concern'), findsOneWidget);

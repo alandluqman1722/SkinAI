@@ -17,12 +17,15 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:skin_ai/image_picker_feedback.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_ai/design/app_components.dart';
 import 'package:skin_ai/design/app_design_system.dart';
 import 'package:skin_ai/navigation/edge_swipe_navigation.dart';
 import 'package:skin_ai/auth/social_auth_service.dart';
 import 'package:skin_ai/multipart_upload.dart';
 import 'package:skin_ai/scan_report.dart';
 import 'package:skin_ai/medical_scan_api.dart';
+import 'package:skin_ai/medical_assessment/medical_assessment_api.dart';
+import 'package:skin_ai/medical_assessment/medical_assessment_screen.dart';
 import 'package:skin_ai/skin_scan/body_region_selector.dart';
 import 'package:skin_ai/local_reminder_service.dart';
 import 'package:skin_ai/routines/home_widget_bridge.dart';
@@ -655,6 +658,8 @@ class ScanResult {
   final String summary;
   final String scanId;
   final DateTime timestamp;
+  final String concernLevel;
+  final bool referralRequired;
 
   const ScanResult({
     required this.cls,
@@ -662,6 +667,8 @@ class ScanResult {
     required this.summary,
     required this.scanId,
     required this.timestamp,
+    this.concernLevel = 'moderate',
+    this.referralRequired = false,
   });
 
   factory ScanResult.fromJson(Map<String, dynamic> json) {
@@ -670,6 +677,7 @@ class ScanResult {
     final summaryValue = json['summary'];
     final idValue = json['id'];
     final timestampValue = json['timestamp'];
+    final safety = json['safety'];
     final parsedTimestamp =
         timestampValue is String ? DateTime.tryParse(timestampValue) : null;
 
@@ -697,6 +705,10 @@ class ScanResult {
       summary: summaryValue,
       scanId: idValue,
       timestamp: parsedTimestamp,
+      concernLevel: safety is Map && safety['concern_level'] is String
+          ? safety['concern_level'] as String
+          : 'moderate',
+      referralRequired: safety is Map && safety['referral_required'] == true,
     );
   }
 }
@@ -1165,6 +1177,7 @@ class AppController extends ChangeNotifier {
                     auth,
                     webClientId: FirebaseClientConfig.googleSignInWebClientId,
                   )),
+        _firebaseAuth = auth,
         _auth = authGateway ??
             (auth == null ? null : FirebaseEmailPasswordAuthGateway(auth)),
         _reminderService = reminderService ?? LocalReminderService(),
@@ -1217,6 +1230,7 @@ class AppController extends ChangeNotifier {
   bool onboardingCompleted = false;
   bool retainHistory = false;
   final SocialAuthService? _socialAuth;
+  final FirebaseAuth? _firebaseAuth;
   final EmailPasswordAuthGateway? _auth;
   final ReminderService _reminderService;
   final RoutineController routineController;
@@ -1259,6 +1273,9 @@ class AppController extends ChangeNotifier {
 
   Future<String?> getFirebaseIdToken({bool forceRefresh = false}) async =>
       _auth?.getIdToken(forceRefresh: forceRefresh);
+
+  Stream<void>? get firebaseIdTokenChanges =>
+      _firebaseAuth?.idTokenChanges().map<void>((_) {});
 
   String? get profilePhotoUrl {
     final photoUrl = _auth?.currentUser?.photoUrl;
@@ -2371,39 +2388,17 @@ Route<T> fadeRoute<T>(Widget page) => PageRouteBuilder<T>(
       transitionDuration: const Duration(milliseconds: 350),
     );
 
-// -------------------- Animated neon background --------------------
+// -------------------- App background --------------------
 
-class NeonBackground extends StatefulWidget {
+class NeonBackground extends StatelessWidget {
   final Widget child;
   const NeonBackground({super.key, required this.child});
-
-  @override
-  State<NeonBackground> createState() => _NeonBackgroundState();
-}
-
-class _NeonBackgroundState extends State<NeonBackground>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController animation;
-
-  @override
-  void initState() {
-    super.initState();
-    animation = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 12),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    animation.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
     return Scaffold(
+      backgroundColor: p.bg,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -2412,72 +2407,12 @@ class _NeonBackgroundState extends State<NeonBackground>
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: p.bgGradient,
+                colors: [p.bg, p.bgGradient.first],
               ),
             ),
           ),
-          AnimatedBuilder(
-            animation: animation,
-            builder: (context, child) {
-              final t = animation.value * math.pi * 2;
-              return Stack(
-                children: [
-                  _orb(
-                    left: -100 + math.sin(t) * 30,
-                    top: 80 + math.cos(t) * 30,
-                    color: cyan,
-                    alpha: p.orb,
-                  ),
-                  _orb(
-                    right: -130 + math.cos(t) * 30,
-                    top: 300 + math.sin(t) * 40,
-                    color: purple,
-                    alpha: p.orb,
-                  ),
-                  _orb(
-                    left: 60 + math.sin(t) * 30,
-                    bottom: -180 + math.cos(t) * 30,
-                    color: blue,
-                    alpha: p.orb,
-                  ),
-                ],
-              );
-            },
-          ),
-          SafeArea(child: widget.child),
+          SafeArea(child: child),
         ],
-      ),
-    );
-  }
-
-  Widget _orb({
-    double? left,
-    double? right,
-    double? top,
-    double? bottom,
-    required Color color,
-    required double alpha,
-  }) {
-    return Positioned(
-      left: left,
-      right: right,
-      top: top,
-      bottom: bottom,
-      child: IgnorePointer(
-        child: Container(
-          width: 290,
-          height: 290,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [
-                color.withValues(alpha: alpha),
-                color.withValues(alpha: alpha * 0.37),
-                color.withValues(alpha: 0),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -2554,7 +2489,7 @@ class QuickSettings extends StatelessWidget {
                       l == a.lang
                           ? Icons.check_circle_rounded
                           : Icons.circle_outlined,
-                      size: 18,
+                      size: AppSpacing.x4,
                       color: p.accent,
                     ),
                     const SizedBox(width: 10),
@@ -2625,14 +2560,19 @@ class NeonButton extends StatelessWidget {
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.x3),
               ],
-              Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               if (!isLoading) ...[
@@ -3525,6 +3465,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                               Row(
                                 children: [
                                   IconButton(
+                                    tooltip: a.t('back'),
                                     onPressed: () => Navigator.pop(context),
                                     icon: Icon(
                                       a.isRtl
@@ -3534,45 +3475,33 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                   const Spacer(),
-                                  Text(
-                                    'SKIN AI',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 2,
-                                      color: p.text,
-                                    ),
-                                  ),
-                                  const Spacer(),
                                   const QuickSettings(),
                                 ],
                               ),
-                              const SizedBox(height: 14),
-                              const Center(child: AppLogo(size: 84)),
-                              const SizedBox(height: 22),
+                              const SizedBox(height: AppSpacing.x3),
+                              const Center(child: AppLogo(size: 76)),
+                              const SizedBox(height: AppSpacing.x4),
                               Text(
                                 isLogin
                                     ? a.t('welcomeBack')
                                     : a.t('createAccount'),
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w800,
-                                  color: p.text,
-                                ),
+                                style:
+                                    Theme.of(context).textTheme.headlineSmall,
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: AppSpacing.x2),
                               Text(
                                 isLogin ? a.t('signinSub') : a.t('signupSub'),
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    color: p.sub, fontSize: 13, height: 1.5),
+                                style: Theme.of(context).textTheme.bodyMedium,
                               ),
-                              const SizedBox(height: 26),
+                              const SizedBox(height: AppSpacing.x6),
                               Container(
-                                padding: const EdgeInsets.all(5),
+                                padding: const EdgeInsets.all(AppSpacing.x1),
                                 decoration: BoxDecoration(
-                                  color: p.panel.withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(16),
+                                  color: p.panel,
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.medium),
                                   border: Border.all(color: p.border),
                                 ),
                                 child: Row(
@@ -3586,10 +3515,13 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 22),
+                              const SizedBox(height: AppSpacing.x4),
                               Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: cardDecoration(p, radius: 24),
+                                padding: const EdgeInsets.all(AppSpacing.x4),
+                                decoration: cardDecoration(
+                                  p,
+                                  radius: AppRadius.extraLarge,
+                                ),
                                 child: Form(
                                   key: _formKey,
                                   child: Column(
@@ -3737,17 +3669,18 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                                           ),
                                         ),
                                       const SizedBox(height: 12),
-                                      NeonButton(
-                                        text: isLogin
+                                      PrimaryButton(
+                                        label: isLogin
                                             ? a.t('signIn')
                                             : a.t('createAccount'),
                                         icon: isLogin
                                             ? Icons.login_rounded
                                             : Icons.person_add_alt_1_rounded,
-                                        isLoading: busy,
-                                        onTap: busy || _resendingVerification
-                                            ? () {}
-                                            : _submit,
+                                        loading: busy,
+                                        onPressed:
+                                            busy || _resendingVerification
+                                                ? null
+                                                : _submit,
                                       ),
                                       if (!kIsWeb &&
                                           (platform == TargetPlatform.iOS ||
@@ -3929,16 +3862,9 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
       constraints: const BoxConstraints(minHeight: 560),
       padding: const EdgeInsets.all(AppSpacing.x8),
       decoration: BoxDecoration(
+        color: p.panel,
         borderRadius: BorderRadius.circular(AppRadius.extraLarge),
-        gradient: LinearGradient(colors: p.hero),
-        border: Border.all(color: cyan.withValues(alpha: 0.25)),
-        boxShadow: [
-          BoxShadow(
-            color: blue.withValues(alpha: 0.18),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        border: Border.all(color: p.border),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -3948,40 +3874,40 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
           const SizedBox(height: AppSpacing.x6),
           Text(
             a.t('tagline'),
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.4,
-            ),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: p.sub,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
           const SizedBox(height: AppSpacing.x3),
           Text(
             a.t('welcomeHeading'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(color: p.text),
           ),
           const SizedBox(height: AppSpacing.x3),
           Text(
             a.t('welcomeBody'),
-            style: const TextStyle(color: Colors.white70, height: 1.6),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: p.sub),
           ),
           const SizedBox(height: AppSpacing.x8),
           Container(
             padding: const EdgeInsets.all(AppSpacing.x4),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
+              color: p.bg,
               borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+              border: Border.all(color: p.border),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.health_and_safety_outlined,
-                  color: Colors.white,
+                  color: p.accent,
                   size: 28,
                 ),
                 const SizedBox(width: AppSpacing.x3),
@@ -3991,19 +3917,18 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                     children: [
                       Text(
                         a.t('aiAnalysis'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: p.text),
                       ),
                       const SizedBox(height: AppSpacing.x1),
                       Text(
                         a.t('aiAnalysisDesc'),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          height: 1.4,
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: p.sub),
                       ),
                     ],
                   ),
@@ -4033,21 +3958,17 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
               constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.x3),
               decoration: BoxDecoration(
-                gradient: selected
-                    ? const LinearGradient(
-                        colors: [Color(0xFF087CFF), Color(0xFF4640B9)],
-                      )
-                    : null,
+                color: selected ? p.accent : null,
                 borderRadius: BorderRadius.circular(AppRadius.medium),
               ),
               child: Text(
                 text,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : p.hint,
-                ),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: selected
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : p.hint,
+                    ),
               ),
             ),
           ),
@@ -4072,7 +3993,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
       label: text,
       child: Material(
         color: background,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.medium),
         child: InkWell(
           onTap: onPressed,
           borderRadius: BorderRadius.circular(14),
@@ -4128,11 +4049,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
   Widget _label(String text, Pal p) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: p.text,
-      ),
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(color: p.text),
     );
   }
 
@@ -4147,7 +4064,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
     Widget? suffix,
   }) {
     OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.medium),
           borderSide: BorderSide(color: c, width: w),
         );
 
@@ -4157,16 +4074,19 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
       obscureText: obscureText,
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
-      style: TextStyle(color: p.text, fontSize: 13),
+      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: p.text),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: p.hint, fontSize: 12),
+        hintStyle:
+            Theme.of(context).textTheme.bodyMedium?.copyWith(color: p.hint),
         prefixIcon: Icon(icon, color: p.accent, size: 20),
         suffixIcon: suffix,
         filled: true,
         fillColor: p.input,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 17),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.x4,
+          vertical: AppSpacing.x3,
+        ),
         border: border(p.border),
         enabledBorder: border(p.border),
         focusedBorder: border(p.accent, 1.4),
@@ -4258,6 +4178,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _uploadProgress = 0;
   bool exportingReport = false;
   ScanResult? result;
+  MedicalAssessmentResult? _latestMedicalAssessment;
   String? scanError;
   DateTime? scannedAt;
   String? selectedBodyRegion;
@@ -4457,6 +4378,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _accountHistoryConsent = false;
         _originalImageConsent = false;
         result = null;
+        _latestMedicalAssessment = null;
         scanError = null;
         scannedAt = null;
       });
@@ -4472,6 +4394,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _analyze() async {
+    if (analyzing) return;
+    final controller = AppScope.read(context);
+    final image = picked;
+    if (image == null) {
+      showNotice(context, controller.t('pickFirst'));
+      return;
+    }
+    setState(() => analyzing = true);
+    try {
+      final symptomLabels = _selectedSymptoms
+          .map((symptom) => controller.t('symptom${_capitalize(symptom)}'))
+          .toList();
+      final concern = selectedConcern == null
+          ? null
+          : _scanConcernLabel(controller, selectedConcern);
+      final assessment =
+          await Navigator.of(context).push<MedicalAssessmentResult>(
+        MaterialPageRoute(
+          builder: (_) => MedicalAssessmentScreen(
+            skinImage: image,
+            skinFilename: pickedName,
+            baseUrl: controller.serverUrl,
+            tokenProvider: ({required forceRefresh}) =>
+                controller.getFirebaseIdToken(forceRefresh: forceRefresh),
+            bodyLocation: _selectedAreaLabel(controller),
+            symptomsDuration: _selectedDuration == null
+                ? ''
+                : controller.t(_selectedDuration!),
+            symptomsDetails: [
+              if (concern != null) '${controller.t('concernLabel')}: $concern',
+              ...symptomLabels,
+            ].join('\n'),
+          ),
+        ),
+      );
+      if (!mounted || assessment == null) return;
+      final skin = assessment.skinAnalysis;
+      final rawConfidence = skin['confidence'];
+      final confidence = rawConfidence is num
+          ? rawConfidence * (rawConfidence <= 1 ? 100 : 1)
+          : 0.0;
+      final skinResult = skin['result'];
+      final skinSummary = skin['summary'];
+      if (skinResult is! String || skinSummary is! String) {
+        throw const MedicalAssessmentApiException(
+          'The assessment service returned an invalid skin estimate.',
+          statusCode: 502,
+        );
+      }
+      setState(() {
+        _latestMedicalAssessment = assessment;
+        result = ScanResult(
+          cls: skinResult,
+          confidence: confidence.toDouble(),
+          summary: skinSummary,
+          scanId: assessment.id,
+          timestamp: assessment.createdAt,
+          concernLevel: assessment.safety.concernLevel,
+          referralRequired: assessment.safety.referralRequired,
+        );
+        scannedAt = assessment.createdAt;
+      });
+    } on MedicalAssessmentApiException catch (error) {
+      if (mounted) {
+        setState(() => scanError = error.message);
+      }
+    } finally {
+      if (mounted) setState(() => analyzing = false);
+    }
+  }
+
+  Future<void> _quickAnalyze() async {
     if (analyzing) return;
     final a = AppScope.read(context);
     final bytes = picked;
@@ -4674,6 +4668,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           403 => a.t('scanAccessDenied'),
           409 => a.t('mockHistoryNotSupported'),
           413 => a.t('imageTooLarge'),
+          429 => a.t('scanQuotaExceeded'),
+          500 => a.t('scanServerError'),
           503 => a.t('apiServiceUnavailable'),
           502 => a.t('scanProviderError'),
           504 => a.t('scanTimeout'),
@@ -4698,7 +4694,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final bytes = await buildScanReportPdf(
         result: _displayScanLabel(a, scan.cls),
-        confidencePercent: scan.confidence,
+        concernLevel: scan.concernLevel,
         scannedAt: scannedAt ?? DateTime.now(),
         summary: scan.summary,
         localize: a.t,
@@ -4858,88 +4854,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    return Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 8, 8),
-      decoration: BoxDecoration(
-        color: p.nav.withValues(alpha: 0.85),
-        border: Border(bottom: BorderSide(color: p.border)),
-      ),
-      child: Row(
-        children: [
-          if (showLogo) ...[
-            const AppLogo(size: 36),
-            const SizedBox(width: 12),
+    return GlassTopBar(
+      title: titles[selectedIndex],
+      leading: showLogo ? const AppLogo(size: 36) : null,
+      actions: [
+        IconActionButton(
+          label: a.t('search'),
+          onPressed: _openSearch,
+          icon: Icons.search_rounded,
+          color: p.sub,
+        ),
+        IconButton(
+          tooltip: a.t('notifications'),
+          constraints: const BoxConstraints(
+            minWidth: AppSpacing.x12,
+            minHeight: AppSpacing.x12,
+          ),
+          onPressed: _openNotifications,
+          icon: Badge(
+            isLabelVisible: a.routineController.unseenNotificationCount > 0,
+            label: Text('${a.routineController.unseenNotificationCount}'),
+            child: Icon(Icons.notifications_none_rounded, color: p.sub),
+          ),
+        ),
+        PopupMenuButton<String>(
+          tooltip: a.t('settings'),
+          color: p.panel,
+          onSelected: _onMenu,
+          itemBuilder: (_) => [
+            for (final l
+                in AppLang.values.where((value) => value.isReleaseReady))
+              item('lang_${l.name}', Icons.language_rounded, langNames[l]!,
+                  checked: l == a.lang),
+            const PopupMenuDivider(),
+            item(
+              'theme',
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              isDark ? a.t('light') : a.t('dark'),
+            ),
+            item('settings', Icons.settings_outlined, a.t('settings')),
+            item('about', Icons.info_outline_rounded, a.t('about')),
+            const PopupMenuDivider(),
+            item('signout', Icons.logout_rounded, a.t('signOut')),
           ],
-          Expanded(
-            child: Text(
-              titles[selectedIndex],
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                letterSpacing: selectedIndex == 0 && !a.isRtl ? 1 : 0,
-                color: p.text,
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: a.t('search'),
-            onPressed: _openSearch,
-            icon: Icon(Icons.search_rounded, color: p.sub),
-          ),
-          IconButton(
-            tooltip: a.t('notifications'),
-            onPressed: _openNotifications,
-            icon: Badge(
-              isLabelVisible: a.routineController.unseenNotificationCount > 0,
-              label: Text(
-                '${a.routineController.unseenNotificationCount}',
-              ),
-              child: Icon(Icons.notifications_none_rounded, color: p.sub),
-            ),
-          ),
-          PopupMenuButton<String>(
-            tooltip: a.t('settings'),
-            color: p.panel,
-            onSelected: _onMenu,
-            itemBuilder: (_) => [
-              for (final l
-                  in AppLang.values.where((value) => value.isReleaseReady))
-                item('lang_${l.name}', Icons.language_rounded, langNames[l]!,
-                    checked: l == a.lang),
-              const PopupMenuDivider(),
-              item(
-                'theme',
-                isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                isDark ? a.t('light') : a.t('dark'),
-              ),
-              item('settings', Icons.settings_outlined, a.t('settings')),
-              item('about', Icons.info_outline_rounded, a.t('about')),
-              const PopupMenuDivider(),
-              item('signout', Icons.logout_rounded, a.t('signOut')),
-            ],
-            child: Container(
-              width: 38,
-              height: 38,
-              margin: const EdgeInsets.symmetric(horizontal: 6),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(colors: brandGradient),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                a.initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
+          child: SizedBox(
+            width: AppSpacing.x12,
+            height: AppSpacing.x12,
+            child: Center(
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: brandGradient),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  a.initial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -5039,166 +5021,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  List<(IconData, IconData, String)> _navigationItems(
+  List<AppNavigationItem> _navigationItems(
     AppController a, {
     bool compact = false,
   }) =>
       [
-        (Icons.home_outlined, Icons.home, a.t('navHome')),
-        (Icons.history, Icons.history, a.t('navHistory')),
-        (
-          Icons.center_focus_weak,
-          Icons.center_focus_strong,
-          a.t('navScan'),
+        AppNavigationItem(
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home_rounded,
+          label: a.t('navHome'),
         ),
-        (
-          Icons.checklist_outlined,
-          Icons.checklist_rounded,
-          compact ? a.t('navRoutine') : a.routineText('routines'),
+        AppNavigationItem(
+          icon: Icons.history_outlined,
+          selectedIcon: Icons.history_rounded,
+          label: a.t('navHistory'),
         ),
-        (
-          Icons.settings_outlined,
-          Icons.settings_rounded,
-          compact ? a.t('navSettings') : a.t('settings'),
+        AppNavigationItem(
+          icon: Icons.center_focus_weak_rounded,
+          selectedIcon: Icons.center_focus_strong_rounded,
+          label: a.t('navScan'),
+        ),
+        AppNavigationItem(
+          icon: Icons.checklist_outlined,
+          selectedIcon: Icons.checklist_rounded,
+          label: compact ? a.t('navRoutine') : a.routineText('routines'),
+        ),
+        AppNavigationItem(
+          icon: Icons.settings_outlined,
+          selectedIcon: Icons.settings_rounded,
+          label: compact ? a.t('navSettings') : a.t('settings'),
         ),
       ];
 
   Widget _bottomNavigation(AppController a, Pal p) {
-    return NavigationBar(
-      backgroundColor: p.nav,
-      indicatorColor: p.accent.withValues(alpha: 0.18),
+    return GlassBottomNav(
+      items: _navigationItems(a, compact: true),
       selectedIndex: selectedIndex,
-      onDestinationSelected: _selectTab,
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      labelPadding: const EdgeInsets.only(top: 2),
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        return TextStyle(
-          color: selected ? p.text : p.sub,
-          fontSize: 11,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-          height: 1,
-        );
-      }),
-      destinations: [
-        for (final (icon, selectedIcon, label)
-            in _navigationItems(a, compact: true))
-          NavigationDestination(
-            icon: Icon(icon),
-            selectedIcon: Icon(selectedIcon, color: p.accent),
-            label: label,
-          ),
-      ],
+      onSelected: _selectTab,
     );
   }
 
   Widget _tabletNavigation(AppController a, Pal p) {
-    return SizedBox(
-      width: 88,
-      child: NavigationRail(
-        backgroundColor: p.nav,
-        minWidth: 88,
-        labelType: NavigationRailLabelType.all,
-        selectedIndex: selectedIndex,
-        onDestinationSelected: _selectTab,
-        destinations: [
-          for (final (icon, selectedIcon, label) in _navigationItems(a))
-            NavigationRailDestination(
-              icon: Icon(icon),
-              selectedIcon: Icon(selectedIcon, color: p.accent),
-              label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-        ],
-      ),
+    return AppNavigationRail(
+      items: _navigationItems(a),
+      selectedIndex: selectedIndex,
+      onSelected: _selectTab,
     );
   }
 
   Widget _desktopNavigation(AppController a, Pal p) {
-    final items = _navigationItems(a);
-    return Container(
-      width: 248,
-      color: p.nav,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(20, 22, 16, 26),
-            child: Row(
-              children: [
-                const AppLogo(size: 40),
-                const SizedBox(width: 12),
-                Text(
-                  'SkinAI',
-                  style: TextStyle(
-                    color: p.text,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final (icon, selectedIcon, label) = items[index];
-                final selected = selectedIndex == index;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Semantics(
-                    button: true,
-                    selected: selected,
-                    label: label,
-                    child: Material(
-                      color: selected
-                          ? p.accent.withValues(alpha: 0.14)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(AppRadius.medium),
-                      child: InkWell(
-                        key: ValueKey('dashboard-nav-$index'),
-                        borderRadius: BorderRadius.circular(AppRadius.medium),
-                        onTap: () => _selectTab(index),
-                        child: Container(
-                          constraints: const BoxConstraints(minHeight: 48),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                selected ? selectedIcon : icon,
-                                color: selected ? p.accent : p.sub,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Text(
-                                  label,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: selected ? p.accent : p.sub,
-                                    fontWeight: selected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+    return AppSidebar(
+      items: _navigationItems(a),
+      selectedIndex: selectedIndex,
+      onSelected: _selectTab,
+      logo: const AppLogo(size: 40),
+      productName: 'SkinAI',
     );
   }
 
@@ -5226,18 +5103,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final isWide = constraints.maxWidth >= 900;
 
         return ListView(
-          padding: const EdgeInsets.all(AppSpacing.x6),
+          padding: const EdgeInsets.all(AppSpacing.x4),
           children: [
             Text(
-              '${a.t('hello')} ${a.userName} 👋',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: p.text,
-              ),
+              '${a.t('hello')} ${a.userName}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: AppSpacing.x2),
-            Text(a.t('homeSub'), style: TextStyle(color: p.sub)),
+            Text(
+              a.t('homeSub'),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             const SizedBox(height: AppSpacing.x6),
             if (isWide)
               Row(
@@ -5293,21 +5171,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const Icon(
             Icons.face_retouching_natural,
             color: Colors.white,
-            size: 42,
+            size: AppSpacing.x8,
           ),
           const SizedBox(height: AppSpacing.x4),
           Text(
             a.t('aiAnalysis'),
-            style: const TextStyle(
-              fontSize: 23,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                ),
           ),
           const SizedBox(height: AppSpacing.x2),
           Text(
             a.t('aiAnalysisDesc'),
-            style: const TextStyle(color: Colors.white70, height: 1.6),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
+                ),
           ),
           const SizedBox(height: AppSpacing.x6),
           SizedBox(
@@ -5319,8 +5197,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xFF0B3D91),
-                padding: const EdgeInsets.all(AppSpacing.x4),
-                minimumSize: const Size.fromHeight(48),
               ),
             ),
           ),
@@ -5364,12 +5240,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builder: (_) => DoctorDirectoryScreen(
           baseUrl: a.serverUrl,
           idTokenProvider: a.getFirebaseIdToken,
+          tokenChanges: a.firebaseIdTokenChanges,
         ),
       ),
     );
   }
 
   Widget _homeChatCard(AppController a) {
+    final p = Pal.of(context);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.extraLarge),
@@ -5380,18 +5258,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: const EdgeInsets.all(AppSpacing.x4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.extraLarge),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF112B49), Color(0xFF20234D)],
-            ),
-            border: Border.all(color: cyan.withValues(alpha: .28)),
+            color: p.panel,
+            border: Border.all(color: p.border),
           ),
           child: Row(
             children: [
-              const CircleAvatar(
-                backgroundColor: Color(0xFF12C7E8),
+              CircleAvatar(
+                backgroundColor: p.accent.withValues(alpha: 0.12),
                 child: Icon(
                   Icons.health_and_safety_outlined,
-                  color: Color(0xFF06202B),
+                  color: p.accent,
                 ),
               ),
               const SizedBox(width: AppSpacing.x3),
@@ -5399,21 +5275,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'SkinChat AI',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: AppSpacing.x1),
                     Text(
                       a.t('skinChatDescription'),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -5550,13 +5419,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                         ),
-                        Text(
-                          '${scan.conf.toStringAsFixed(0)}%',
-                          style: TextStyle(
-                            color: p.accent,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -5592,7 +5454,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(
             child: Text(
               a.t('disclaimer'),
-              style: TextStyle(color: p.sub, height: 1.6, fontSize: 12),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
         ],
@@ -5603,11 +5465,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _homeSectionTitle(String title, Pal p) {
     return Text(
       title,
-      style: TextStyle(
-        fontSize: 19,
-        fontWeight: FontWeight.bold,
-        color: p.text,
-      ),
+      style: Theme.of(context).textTheme.titleLarge,
     );
   }
 
@@ -5615,28 +5473,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.large),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.x1,
+            horizontal: AppSpacing.x1 / 2,
+          ),
           child: Column(
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: AppSpacing.x12,
+                height: AppSpacing.x12,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(AppRadius.large),
                   color: p.accent.withValues(alpha: 0.14),
                   border: Border.all(color: p.accent.withValues(alpha: 0.3)),
                 ),
                 child: Icon(icon, color: p.accent),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.x2),
               Text(
                 label,
-                maxLines: 2,
+                maxLines: 1,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: p.sub),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
@@ -5656,21 +5517,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(19),
+        borderRadius: BorderRadius.circular(AppRadius.extraLarge),
         child: Ink(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.x4),
           decoration: cardDecoration(p),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: p.accent, size: 29),
-              const SizedBox(height: 15),
+              Icon(icon, color: p.accent, size: AppSpacing.x6),
+              const SizedBox(height: AppSpacing.x3),
               Text(
                 title,
-                style: TextStyle(fontWeight: FontWeight.bold, color: p.text),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 6),
-              Text(subtitle, style: TextStyle(color: p.hint, fontSize: 11)),
+              const SizedBox(height: AppSpacing.x2),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ),
         ),
@@ -5690,7 +5556,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(AppRadius.medium),
               color: p.accent.withValues(alpha: 0.14),
             ),
             child: Icon(icon, color: p.accent),
@@ -5858,7 +5724,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: AppSpacing.x1),
                 Text(
                   concern == null ? a.t('region_unsure') : a.t(concern.$2),
                   style: TextStyle(color: p.sub, fontSize: 12),
@@ -6102,6 +5968,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _accountHistoryConsent = false;
                           _originalImageConsent = false;
                           result = null;
+                          _latestMedicalAssessment = null;
                           scanError = null;
                           scannedAt = null;
                         }),
@@ -6241,6 +6108,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: analyzing ? () {} : _analyze,
         ),
       ),
+      const SizedBox(height: AppSpacing.x2),
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: analyzing ? null : _quickAnalyze,
+          icon: const Icon(Icons.image_search_outlined),
+          label: Text(a.t('quickScan')),
+        ),
+      ),
       if (scanError != null)
         Container(
           margin: const EdgeInsets.only(top: AppSpacing.x4),
@@ -6317,6 +6193,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _resultCard(AppController a, Pal p, ScanResult r) {
     final scanContext = a.latestSkinChatScan;
+    final summaryPreview = _shortSummary(r.summary);
+    final concernKey = switch (r.concernLevel) {
+      'low' => 'concernLow',
+      'moderate' => 'concernModerate',
+      'high' => 'concernHigh',
+      'prompt_in_person' => 'concernPrompt',
+      'insufficient' => 'concernInsufficient',
+      _ => 'concernModerate',
+    };
     return Container(
       margin: const EdgeInsets.only(top: 22),
       padding: const EdgeInsets.all(18),
@@ -6328,7 +6213,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(a.t('result'), style: TextStyle(color: p.hint, fontSize: 12)),
+          Text(a.t('possiblePattern'),
+              style: TextStyle(color: p.hint, fontSize: 12)),
           const SizedBox(height: 10),
           SelectableText(
             r.cls,
@@ -6339,45 +6225,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
+          Text(
+            '${a.t('concernLevel')}: ${AppLocalizations.of(context).text(concernKey, domain: 'medical_assessment')}',
+            style: TextStyle(color: p.sub),
+          ),
+          const SizedBox(height: AppSpacing.x3),
+          if (summaryPreview.isNotEmpty)
+            Text(
+              summaryPreview,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: p.sub, height: 1.5),
+            ),
+          ExpansionTile(
+            key: const ValueKey('scan-result-details'),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            title: Text(a.t('scanCardShowMore')),
             children: [
-              Text(a.t('confidence'),
-                  style: TextStyle(color: p.sub, fontSize: 12)),
-              const Spacer(),
-              Text(
-                '${r.confidence.toStringAsFixed(1)}%',
-                style: TextStyle(color: p.accent, fontWeight: FontWeight.w800),
+              MarkdownBody(
+                data: r.summary,
+                selectable: true,
+                imageBuilder: (uri, title, alt) => const SizedBox.shrink(),
+                styleSheet: MarkdownStyleSheet(
+                  p: TextStyle(color: p.sub, height: 1.5),
+                  h1: TextStyle(color: p.text, fontSize: 23),
+                  h2: TextStyle(color: p.text, fontSize: 20),
+                  h3: TextStyle(color: p.text, fontSize: 17),
+                  strong: TextStyle(
+                    color: p.text,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  listBullet: TextStyle(color: p.accent),
+                  code: TextStyle(color: p.text, backgroundColor: p.border),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: (r.confidence / 100).clamp(0.0, 1.0).toDouble(),
-              minHeight: 8,
-              backgroundColor: p.border,
-              valueColor: AlwaysStoppedAnimation<Color>(p.accent),
-            ),
+          const SizedBox(height: AppSpacing.x3),
+          Text(
+            AppLocalizations.of(context)
+                .text('screeningLimitations', domain: 'medical_assessment'),
+            style: TextStyle(color: p.hint),
           ),
-          const SizedBox(height: 18),
-          MarkdownBody(
-            data: r.summary,
-            selectable: true,
-            imageBuilder: (uri, title, alt) => const SizedBox.shrink(),
-            styleSheet: MarkdownStyleSheet(
-              p: TextStyle(color: p.sub, height: 1.5),
-              h1: TextStyle(color: p.text, fontSize: 23),
-              h2: TextStyle(color: p.text, fontSize: 20),
-              h3: TextStyle(color: p.text, fontSize: 17),
-              strong: TextStyle(
-                color: p.text,
-                fontWeight: FontWeight.w700,
+          const SizedBox(height: AppSpacing.x2),
+          Text(
+            a.t('medicalDisclaimerText'),
+            style: TextStyle(color: p.hint),
+          ),
+          if (r.referralRequired) ...[
+            const SizedBox(height: AppSpacing.x3),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => DoctorDirectoryScreen(
+                    baseUrl: a.serverUrl,
+                    idTokenProvider: () => a.getFirebaseIdToken(),
+                    tokenChanges: a.firebaseIdTokenChanges,
+                  ),
+                ),
               ),
-              listBullet: TextStyle(color: p.accent),
-              code: TextStyle(color: p.text, backgroundColor: p.border),
+              icon: const Icon(Icons.search),
+              label: Text(AppLocalizations.of(context)
+                  .text('findDermatologist', domain: 'medical_assessment')),
             ),
-          ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -6396,6 +6308,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.x2),
+          if (_latestMedicalAssessment != null)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MedicalAssessmentScreen(
+                      skinImage: picked ?? Uint8List(0),
+                      skinFilename: pickedName,
+                      baseUrl: a.serverUrl,
+                      tokenProvider: ({required forceRefresh}) =>
+                          a.getFirebaseIdToken(forceRefresh: forceRefresh),
+                      initialResult: _latestMedicalAssessment,
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.health_and_safety_outlined),
+                label: Text(a.t('viewMedicalAssessment')),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.x2),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
@@ -6413,6 +6346,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+
+  String _shortSummary(String value) {
+    final plainText = value
+        .replaceAll(RegExp(r'[#*_`>]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (plainText.length <= 180) return plainText;
+    return '${plainText.substring(0, 177).trimRight()}…';
   }
 
   // ---------- History ----------
@@ -6662,10 +6604,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: TextStyle(color: p.sub),
             ),
             const SizedBox(height: AppSpacing.x2),
-            Text(
-              '${a.t('scanConfidence')}: ${scan.conf.toStringAsFixed(1)}%',
-              style: TextStyle(color: p.sub),
-            ),
             if (location.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.x2),
               Text(
@@ -6675,9 +6613,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
             if (scan.summary?.isNotEmpty == true) ...[
               const SizedBox(height: AppSpacing.x6),
-              SelectableText(
-                scan.summary!,
+              Text(
+                _shortSummary(scan.summary!),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: p.sub, height: 1.5),
+              ),
+              ExpansionTile(
+                key: const ValueKey('history-summary-details'),
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Text(a.t('scanCardShowMore')),
+                children: [
+                  MarkdownBody(
+                    data: scan.summary!,
+                    selectable: true,
+                    imageBuilder: (uri, title, alt) => const SizedBox.shrink(),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: AppSpacing.x6),
@@ -6764,7 +6717,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                   const SizedBox(height: 4),
                   Text(
-                    '${sc.conf.toStringAsFixed(1)}%  ·  ${d.year}-${two(d.month)}-${two(d.day)}  ${two(d.hour)}:${two(d.minute)}',
+                    '${d.year}-${two(d.month)}-${two(d.day)}  ${two(d.hour)}:${two(d.minute)}',
                     style: TextStyle(color: p.hint, fontSize: 12),
                   ),
                 ],
@@ -6851,10 +6804,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       style: TextStyle(color: p.sub),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      '${a.t('scanConfidence')}: ${scan.conf.toStringAsFixed(1)}%',
-                      style: TextStyle(color: p.sub),
-                    ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: locationController,
@@ -6873,8 +6822,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     if (scan.summary?.isNotEmpty == true) ...[
                       const SizedBox(height: 12),
                       Text(
-                        scan.summary!,
+                        _shortSummary(scan.summary!),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: p.sub, height: 1.5),
+                      ),
+                      ExpansionTile(
+                        key: const ValueKey('history-dialog-summary-details'),
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        title: Text(a.t('scanCardShowMore')),
+                        children: [
+                          MarkdownBody(
+                            data: scan.summary!,
+                            selectable: true,
+                            imageBuilder: (uri, title, alt) =>
+                                const SizedBox.shrink(),
+                          ),
+                        ],
                       ),
                     ],
                     const SizedBox(height: 12),
@@ -6998,14 +6963,14 @@ class _ProfileCard extends StatelessWidget {
         (uri.scheme == 'https' || uri.scheme == 'http') &&
         uri.host.isNotEmpty;
     final initials = _initials;
-    const cardRadius = 24.0;
+    const cardRadius = AppRadius.extraLarge;
 
     Widget avatarFallback() => Center(
           child: Text(
             initials,
             style: TextStyle(
               color: p.accent,
-              fontSize: 20,
+              fontSize: AppTypography.title,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -7032,7 +6997,7 @@ class _ProfileCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(cardRadius),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(AppSpacing.x4),
             child: Row(
               children: [
                 Container(
@@ -7044,7 +7009,7 @@ class _ProfileCard extends StatelessWidget {
                   child: Container(
                     width: 60,
                     height: 60,
-                    padding: const EdgeInsets.all(3),
+                    padding: const EdgeInsets.all(AppSpacing.x1),
                     decoration: BoxDecoration(
                       color: p.panel,
                       shape: BoxShape.circle,
@@ -7060,7 +7025,7 @@ class _ProfileCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: AppSpacing.x4),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -7071,28 +7036,29 @@ class _ProfileCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: p.text,
-                          fontSize: 17,
+                          fontSize: AppTypography.label + AppSpacing.x1,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: AppSpacing.x1),
                       Text(
                         email,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: p.sub, fontSize: 12),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.x2),
                       DecoratedBox(
                         decoration: BoxDecoration(
                           color:
                               p.accent.withValues(alpha: isDark ? 0.16 : 0.08),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.pill),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: AppSpacing.x2,
+                            vertical: AppSpacing.x1,
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -7100,9 +7066,9 @@ class _ProfileCard extends StatelessWidget {
                               Icon(
                                 Icons.verified_rounded,
                                 color: p.accent,
-                                size: 14,
+                                size: AppTypography.label,
                               ),
-                              const SizedBox(width: 5),
+                              const SizedBox(width: AppSpacing.x1),
                               Flexible(
                                 child: Text(
                                   memberLabel,
@@ -7110,7 +7076,7 @@ class _ProfileCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     color: p.accent,
-                                    fontSize: 10,
+                                    fontSize: AppTypography.caption,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: isRtl ? 0 : 0.35,
                                   ),
@@ -7123,7 +7089,7 @@ class _ProfileCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.x1),
                 Icon(
                   isRtl
                       ? Icons.chevron_left_rounded
@@ -7159,18 +7125,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       isScrollControlled: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x4,
+            0,
+            AppSpacing.x4,
+            AppSpacing.x4,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 _label(a, 'primaryGoal'),
-                style: TextStyle(
-                  color: p.text,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: p.text,
+                    ),
               ),
               const SizedBox(height: 8),
               for (final goal in const [
@@ -7357,18 +7326,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x4,
+            0,
+            AppSpacing.x4,
+            AppSpacing.x4,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 _label(a, 'language'),
-                style: TextStyle(
-                  color: p.text,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: p.text,
+                    ),
               ),
               const SizedBox(height: 8),
               for (final language in AppLang.values)
@@ -7416,18 +7388,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x4,
+            0,
+            AppSpacing.x4,
+            AppSpacing.x4,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 _label(a, 'theme'),
-                style: TextStyle(
-                  color: p.text,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: p.text,
+                    ),
               ),
               for (final mode in ThemeMode.values)
                 ListTile(
@@ -7495,7 +7470,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   borderRadius: BorderRadius.circular(28),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
+                    duration: AppMotion.fast,
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
@@ -7546,10 +7521,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         isScrollControlled: true,
         builder: (sheetContext) => Padding(
           padding: EdgeInsets.fromLTRB(
-            22,
+            AppSpacing.x4,
             0,
-            22,
-            MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
+            AppSpacing.x4,
+            MediaQuery.viewInsetsOf(sheetContext).bottom + AppSpacing.x6,
           ),
           child: SafeArea(
             top: false,
@@ -7559,13 +7534,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 Text(
                   _label(a, 'editProfile'),
-                  style: TextStyle(
-                    color: p.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: p.text,
+                      ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpacing.x3),
                 TextField(
                   controller: nameController,
                   textCapitalization: TextCapitalization.words,
@@ -7574,12 +7547,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.x3),
                 Text(
                   '${_label(a, 'email')}: ${a.userEmail}',
                   style: TextStyle(color: p.sub),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: AppSpacing.x4),
                 FilledButton(
                   onPressed: () => Navigator.of(sheetContext)
                       .pop(nameController.text.trim()),
@@ -7615,18 +7588,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x4,
+            0,
+            AppSpacing.x4,
+            AppSpacing.x4,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 _label(a, 'accountSecurity'),
-                style: TextStyle(
-                  color: p.text,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: p.text,
+                    ),
               ),
               ListTile(
                 leading: Icon(Icons.person_outline_rounded, color: p.accent),
@@ -7742,20 +7718,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       isScrollControlled: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x6,
+            0,
+            AppSpacing.x6,
+            AppSpacing.x6,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 _label(a, key),
-                style: TextStyle(
-                  color: p.text,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: p.text,
+                    ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.x3),
               Text(body, style: TextStyle(color: p.sub, height: 1.55)),
             ],
           ),
@@ -7803,36 +7782,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(4, 22, 4, 10),
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                AppSpacing.x1,
+                AppSpacing.x6,
+                AppSpacing.x1,
+                AppSpacing.x3,
+              ),
               child: Text(
                 title,
-                style: TextStyle(
-                  color: isDark
-                      ? const Color(0xFF38BDF8)
-                      : const Color(0xFF64748B),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: isRtl ? 0 : 1.05,
-                ),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: muted,
+                    ),
               ),
             ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: p.panel,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: border),
-                boxShadow: isDark
-                    ? null
-                    : const [
-                        BoxShadow(
-                          color: Color(0x080D2850),
-                          blurRadius: 22,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-              ),
+            AppCard(
+              padding: const EdgeInsets.all(AppSpacing.x4),
               child: child,
             ),
           ],
@@ -7860,8 +7824,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 14,
+                          horizontal: AppSpacing.x3,
+                          vertical: AppSpacing.x4,
                         ),
                         decoration: BoxDecoration(
                           color: a.skinType == type
@@ -7902,7 +7866,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       : isDark
                                           ? const Color(0xFFE2E8F0)
                                           : p.sub,
-                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -7911,7 +7874,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Icon(
                                 Icons.check_circle_rounded,
                                 color: blueAccent,
-                                size: 16,
+                                size: AppSpacing.x4,
                               ),
                           ],
                         ),
@@ -7969,19 +7932,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Widget? trailing,
     }) =>
         Padding(
-          padding: EdgeInsets.only(bottom: last ? 0 : 14),
+          padding: EdgeInsets.only(bottom: last ? 0 : AppSpacing.x3),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: onTap,
               borderRadius: BorderRadius.circular(14),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.x1),
                 child: Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: AppSpacing.x12,
+                      height: AppSpacing.x12,
                       decoration: BoxDecoration(
                         color: (accent ?? blueAccent).withValues(
                           alpha: isDark ? 0.15 : 0.09,
@@ -8006,7 +7969,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const SizedBox(height: 3),
                           Text(
                             value,
-                            style: TextStyle(color: muted, fontSize: 12),
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
                       ),
@@ -8016,7 +7979,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           isRtl
                               ? Icons.chevron_left_rounded
                               : Icons.chevron_right_rounded,
-                          size: 21,
+                          size: AppSpacing.x6,
                           color: const Color(0xFFAAB3C3),
                         ),
                   ],
@@ -8027,7 +7990,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
 
     Widget divider() => Padding(
-          padding: const EdgeInsetsDirectional.only(start: 52, bottom: 14),
+          padding: const EdgeInsetsDirectional.only(
+            start: AppSpacing.x12 + AppSpacing.x1,
+            bottom: AppSpacing.x3,
+          ),
           child: Divider(height: 1, color: border),
         );
 
@@ -8059,7 +8025,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title,
                 style: TextStyle(
                   color: ink,
-                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 from fastapi import HTTPException, UploadFile
@@ -15,7 +15,6 @@ import backend.ai_service as ai_service
 import backend.medical_records as medical_records
 from backend.firebase_auth import require_firebase_user
 
-
 def png_image() -> bytes:
     buffer = BytesIO()
     Image.new("RGBA", (16, 16), color=(10, 20, 30, 128)).save(
@@ -25,7 +24,7 @@ def png_image() -> bytes:
     return buffer.getvalue()
 
 
-class ScanSkinServiceTests(unittest.TestCase):
+class IvyAIServiceTests(unittest.TestCase):
     def setUp(self) -> None:
         skinai_api.app.dependency_overrides[require_firebase_user] = (
             lambda: {"uid": "test-user"}
@@ -70,8 +69,8 @@ class ScanSkinServiceTests(unittest.TestCase):
                 "os.environ",
                 {
                     "MOCK_API": "1",
-                    "SCANSKIN_HISTORY_PATH": str(history),
-                    "SCANSKIN_API_KEY": "",
+                    "SKINAI_SCAN_HISTORY_PATH": str(history),
+                    "IVYAI_API_KEY": "",
                 },
             ):
                 response = self._post_analyze(
@@ -88,22 +87,12 @@ class ScanSkinServiceTests(unittest.TestCase):
 
     def test_opted_in_provider_analysis_creates_owner_scoped_record(self):
         image_bytes = png_image()
-        transport = httpx.MockTransport(
-            lambda _: httpx.Response(
-                200,
-                json={
-                    "result": "Provider result for test",
-                    "confidence": 0.62,
-                    "summary": "Provider explanation for test.",
-                },
-            )
-        )
-
-        def client_factory():
-            return httpx.AsyncClient(
-                transport=transport,
-                timeout=httpx.Timeout(120.0, connect=10.0),
-            )
+        provider = AsyncMock()
+        provider.analyze.return_value = {
+            "result": "Provider result for test",
+            "confidence": 62,
+            "summary": "Provider explanation for test.",
+        }
 
         with tempfile.TemporaryDirectory() as directory:
             history = Path(directory) / "history.jsonl"
@@ -112,16 +101,12 @@ class ScanSkinServiceTests(unittest.TestCase):
                     "os.environ",
                     {
                         "MOCK_API": "0",
-                        "SCANSKIN_API_KEY": "test-provider-key",
-                        "SCANSKIN_HISTORY_PATH": str(history),
+                        "IVYAI_API_KEY": "test-provider-key",
+                        "SKINAI_SCAN_HISTORY_PATH": str(history),
                     },
                 ),
                 patch.object(medical_records, "create_analysis_scan") as save_record,
-                patch.object(
-                    ai_service,
-                    "_create_http_client",
-                    side_effect=client_factory,
-                ),
+                patch.object(ai_service, "IvyAIProvider", return_value=provider),
             ):
                 response = self._post_analyze(
                     files={"image": ("original.png", image_bytes, "image/png")},
@@ -143,10 +128,11 @@ class ScanSkinServiceTests(unittest.TestCase):
         self.assertEqual(kwargs["user_notes"], "User-reported itching.")
 
     def test_mock_result_cannot_be_saved_as_a_medical_record(self):
-        response = self._post_analyze(
-            files={"image": ("scan.png", png_image(), "image/png")},
-            data={"save_history": "true"},
-        )
+        with patch.dict("os.environ", {"MOCK_API": "1"}):
+            response = self._post_analyze(
+                files={"image": ("scan.png", png_image(), "image/png")},
+                data={"save_history": "true"},
+            )
         self.assertEqual(response.status_code, 409)
 
     def test_original_image_consent_cannot_be_submitted_without_history_opt_in(self):
@@ -162,27 +148,15 @@ class ScanSkinServiceTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"], "No input image provided.")
 
-    def test_provider_receives_jpeg_and_optional_fields_once(self) -> None:
-        observed: dict[str, object] = {}
+    def test_patient_context_is_not_forwarded_to_provider(self) -> None:
         mock_response = {
             "result": "A provider label not known to the app",
-            "confidence": 0.78,
+            "confidence": 78,
             "summary": "## Summary\n\n- Markdown is preserved.",
-            "discordant": True,
         }
 
-        def responder(request: httpx.Request) -> httpx.Response:
-            observed["url"] = str(request.url)
-            observed["headers"] = request.headers
-            observed["body"] = request.read()
-            return httpx.Response(200, json=mock_response)
-
-        transport = httpx.MockTransport(responder)
-        def client_factory():
-            return httpx.AsyncClient(
-                transport=transport,
-                timeout=httpx.Timeout(120.0, connect=10.0),
-            )
+        provider = AsyncMock()
+        provider.analyze.return_value = mock_response
 
         with tempfile.TemporaryDirectory() as directory:
             history = Path(directory) / "history.jsonl"
@@ -191,15 +165,11 @@ class ScanSkinServiceTests(unittest.TestCase):
                     "os.environ",
                     {
                         "MOCK_API": "0",
-                        "SCANSKIN_API_KEY": "server-only-test-key",
-                        "SCANSKIN_HISTORY_PATH": str(history),
+                        "IVYAI_API_KEY": "server-only-test-key",
+                        "SKINAI_SCAN_HISTORY_PATH": str(history),
                     },
                 ),
-                patch.object(
-                    ai_service,
-                    "_create_http_client",
-                    side_effect=client_factory,
-                ),
+                patch.object(ai_service, "IvyAIProvider", return_value=provider),
             ):
                 response = self._post_analyze(
                     files={"image": ("scan.png", png_image(), "image/png")},
@@ -212,84 +182,85 @@ class ScanSkinServiceTests(unittest.TestCase):
                 )
 
         result = response.json()
-        body = observed["body"]
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            observed["url"],
-            "https://scanskinai.aihealthpred.com/api/detect/",
-        )
-        self.assertEqual(observed["headers"]["x-api-key"], "server-only-test-key")
-        self.assertIn(b'name="input_image"; filename="scan.jpg"', body)
-        self.assertIn(b"Content-Type: image/jpeg", body)
-        self.assertIn(b"name=\"symptoms_change_over_time\"", body)
+        provider.analyze.assert_awaited_once()
+        args, kwargs = provider.analyze.await_args
+        self.assertTrue(args[0].startswith(b"\xff\xd8\xff"))
+        self.assertEqual(kwargs, {})
         self.assertEqual(result["result"], mock_response["result"])
-        self.assertEqual(result["confidence"], 0.78)
+        self.assertEqual(result["confidence"], 78)
         self.assertEqual(result["summary"], mock_response["summary"])
-        self.assertNotIn("discordant", result)
         self.assertNotIn("server-only-test-key", response.text)
 
     def test_upstream_auth_and_timeout_errors_are_mapped(self) -> None:
-        cases = [
-            (
-                httpx.Response(403, json={"error": "Forbidden"}),
-                403,
-            ),
-            (
-                httpx.ReadTimeout("timeout"),
-                504,
-            ),
-        ]
-        for outcome, expected_status in cases:
+        for expected_status in (503, 504):
             with self.subTest(expected_status=expected_status):
-                transport = httpx.MockTransport(
-                    lambda _, outcome=outcome: (
-                        outcome
-                        if isinstance(outcome, httpx.Response)
-                        else (_ for _ in ()).throw(outcome)
-                    )
+                provider = AsyncMock()
+                provider.analyze.side_effect = HTTPException(
+                    status_code=expected_status,
+                    detail="sanitized provider error",
                 )
-                def client_factory():
-                    return httpx.AsyncClient(
-                        transport=transport,
-                        timeout=httpx.Timeout(120.0, connect=10.0),
-                    )
-
                 with patch.dict(
                     "os.environ",
-                    {"MOCK_API": "0", "SCANSKIN_API_KEY": "test-key"},
-                ), patch.object(
-                    ai_service,
-                    "_create_http_client",
-                    side_effect=client_factory,
-                ):
+                    {"MOCK_API": "0", "IVYAI_API_KEY": "test-key"},
+                ), patch.object(ai_service, "IvyAIProvider", return_value=provider):
                     response = self._post_analyze(
                         files={"image": ("scan.png", png_image(), "image/png")}
                     )
                 self.assertEqual(response.status_code, expected_status)
 
     def test_invalid_provider_payload_returns_502(self) -> None:
-        transport = httpx.MockTransport(
-            lambda _: httpx.Response(200, json={"result": "missing fields"})
+        provider = AsyncMock()
+        provider.analyze.side_effect = HTTPException(
+            status_code=502,
+            detail="Ivy AI returned an invalid response.",
         )
-        def client_factory():
-            return httpx.AsyncClient(
-                transport=transport,
-                timeout=httpx.Timeout(120.0, connect=10.0),
-            )
 
         with patch.dict(
             "os.environ",
-            {"MOCK_API": "0", "SCANSKIN_API_KEY": "test-key"},
+            {"MOCK_API": "0", "IVYAI_API_KEY": "test-key"},
         ), patch.object(
             ai_service,
-            "_create_http_client",
-            side_effect=client_factory,
+            "IvyAIProvider",
+            return_value=provider,
         ):
             response = self._post_analyze(
                 files={"image": ("scan.png", png_image(), "image/png")}
             )
 
         self.assertEqual(response.status_code, 502)
+
+    def test_malignant_screening_result_returns_deterministic_referral(self) -> None:
+        provider = AsyncMock()
+        provider.analyze.return_value = {
+            "result": "Melanoma",
+            "confidence": 62,
+            "summary": "Screening estimate.",
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.dict(
+                    "os.environ",
+                    {
+                        "MOCK_API": "0",
+                        "IVYAI_API_KEY": "test-key",
+                        "SKINAI_SCAN_HISTORY_PATH": str(
+                            Path(directory) / "history.jsonl"
+                        ),
+                    },
+                ),
+                patch.object(ai_service, "IvyAIProvider", return_value=provider),
+            ):
+                response = self._post_analyze(
+                    files={"image": ("scan.png", png_image(), "image/png")}
+                )
+
+        self.assertEqual(response.status_code, 200)
+        safety = response.json()["safety"]
+        self.assertEqual(safety["concern_level"], "prompt_in_person")
+        self.assertTrue(safety["referral_required"])
+        self.assertFalse(safety["medication_recommendations_allowed"])
 
     def _post_analyze(
         self,

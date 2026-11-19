@@ -58,7 +58,10 @@ void main() {
 
     final textField = tester.widget<TextField>(find.byType(TextField));
     expect(textField.enabled, isTrue);
-    expect(find.textContaining('No scan is attached.'), findsOneWidget);
+    expect(
+      find.textContaining('General skincare answers are unavailable right now.'),
+      findsOneWidget,
+    );
     await tester.enterText(
       find.byType(TextField),
       'Why does my skin become dry?',
@@ -241,7 +244,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('screening-result · 72.5%'), findsOneWidget);
+    expect(find.text('Possible pattern: screening-result'), findsOneWidget);
     expect(find.text('Scan ID: scan-123'), findsNothing);
     expect(
       find.text('AI screening result, not a diagnosis.'),
@@ -291,7 +294,7 @@ void main() {
 
     final contentRect =
         tester.getRect(find.byKey(const ValueKey('skinchat-content')));
-    expect(contentRect.width, 1200);
+    expect(contentRect.width, 1100);
     expect(tester.widgetList<MarkdownBody>(find.byType(MarkdownBody)),
         hasLength(2));
     expect(

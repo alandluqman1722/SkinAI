@@ -38,6 +38,14 @@ void main() {
     }
   });
 
+  test('assessment yes and no labels exist in the app domain', () {
+    for (final language in ['en', 'ku', 'bad', 'ar']) {
+      final localizations = AppLocalizations.forLanguageCode(language);
+      expect(localizations.text('yes'), isNotEmpty);
+      expect(localizations.text('no'), isNotEmpty);
+    }
+  });
+
   test('notification templates render in the active app language', () {
     expect(
       AppLocalizations.forLanguageCode('en').text(
@@ -76,7 +84,8 @@ void main() {
   test('screening labels, fields, disclaimer, and errors are localized', () {
     const disclaimer =
         'This is a screening tool, not a medical diagnosis. Please consult a healthcare professional.';
-    expect(AppLocalizations.forLanguageCode('en').text('disclaimer'), disclaimer);
+    expect(
+        AppLocalizations.forLanguageCode('en').text('disclaimer'), disclaimer);
     for (final language in ['ku', 'bad', 'ar']) {
       final localizations = AppLocalizations.forLanguageCode(language);
       expect(localizations.text('disclaimer'), isNotEmpty);
@@ -129,7 +138,8 @@ void main() {
     for (final language in ['ku', 'bad', 'en', 'ar']) {
       final localizations = AppLocalizations.forLanguageCode(language);
       for (final key in scanHistoryKeys) {
-        expect(localizations.text(key).trim(), isNotEmpty, reason: '$language.$key');
+        expect(localizations.text(key).trim(), isNotEmpty,
+            reason: '$language.$key');
       }
     }
     expect(
